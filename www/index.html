@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Weatherglass</title>
 <style>
   /* 1History "observatory instrument" palette */
@@ -17,6 +17,10 @@
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%}
+  /* The document itself never scrolls or pans: pinned to the viewport (iOS WKWebView otherwise lets the
+     page drift sideways/down when any child is wider than the screen). Only #card scrolls, internally. */
+  html{position:fixed;inset:0;width:100%;overflow:hidden;overscroll-behavior:none}
+  body{position:fixed;inset:0;width:100%;overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%}
   body{background:
       radial-gradient(120% 90% at 50% 42%, rgba(16,20,36,0) 40%, var(--void-2) 100%),
       var(--void);
@@ -52,11 +56,12 @@
   #results .msg{padding:9px 11px;color:var(--muted);font-size:12.5px}
   .hint{color:var(--muted);font-size:12px;margin-left:auto}
   .zi{color:var(--muted);font-size:12px;margin-left:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
-  #wrap{flex:1 1 auto;min-height:0;display:flex}
-  #stage{position:relative;flex:1 1 auto;min-width:0}
+  #wrap{flex:1 1 auto;min-height:0;display:flex;width:100%;max-width:100%}
+  #stage{position:relative;flex:1 1 auto;min-width:0;overflow:hidden}
   canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
   canvas.drag{cursor:grabbing}
-  #card{flex:0 0 340px;border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:18px}
+  #card{flex:0 0 340px;min-width:0;max-width:100%;border-left:1px solid var(--line);background:var(--panel);overflow:auto;overflow-x:hidden;padding:18px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  #card .wxout,#card .tab-panel{max-width:100%;overflow-wrap:anywhere}
   .card-tag{font-family:-apple-system,system-ui,sans-serif;font-weight:700;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
   #card h2{font-size:22px;line-height:1.15;margin:0 0 4px}
   .card-place{color:var(--muted);font-size:13px;margin-bottom:14px;font-family:-apple-system,system-ui,sans-serif}
@@ -234,9 +239,14 @@
   #stage{position:relative;flex:1 1 auto;min-width:0}
   /* top-left: logo + button cluster (two rows) */
   #ov-tl{position:absolute;top:12px;left:12px;z-index:16;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
-  #ov-tl .brand{height:36px;margin:0 0 1px;line-height:0}                 /* fixed-height container drives the logo size */
-  #ov-tl .brand svg{height:36px!important;width:auto!important;max-width:none;display:block;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.32)}
+  #ov-tl .brand{height:43px;margin:0 0 1px;line-height:0}                 /* fixed-height container drives the logo size */
+  #ov-tl .brand svg{height:43px!important;width:auto!important;max-width:none;display:block;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.32)}
   .ovrow{display:flex;gap:6px;flex-wrap:wrap}
+  /* stacked button columns: Home / Location / Search under the logo; News / Settings under the zoom keys */
+  .ovcol{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+  .ovcol .ovbtn{width:auto}                 /* every button sized to its own label, never a fixed width */
+  /* bottom-right column (News, Settings) sits a little above the layer row */
+  #ov-br{position:absolute;right:12px;bottom:62px;z-index:16;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
   .ovbtn{font:600 12px/1 -apple-system,system-ui,"Segoe UI",sans-serif;color:var(--ink);background:var(--panel);
     border:1px solid var(--line);border-radius:9px;padding:8px 11px;cursor:pointer;white-space:nowrap;
     box-shadow:0 3px 12px rgba(0,0,0,.30);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
@@ -280,8 +290,9 @@
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #layerbar #live-as:empty{display:none}
   /* universal settings sheet (opened by the ⚙ button on every device) */
-  #bar{position:fixed;left:0;right:0;bottom:0;top:auto;max-height:82vh;overflow:auto;z-index:72;
-    display:flex;flex-direction:column;align-items:stretch;gap:12px;padding:16px 18px;
+  #bar{position:fixed;left:0;right:0;bottom:0;top:auto;max-height:82vh;overflow:auto;overflow-x:hidden;z-index:72;
+    display:flex;flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:12px;padding:16px 18px;
+    padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));
     border:0;border-top:1px solid #3a3f49;background:#23262e;border-radius:16px 16px 0 0;
     transform:translateY(105%);transition:transform .25s ease;box-shadow:0 -18px 50px rgba(0,0,0,.55)}
   body.settings-open #bar{transform:none}
@@ -301,8 +312,31 @@
   #owm-toast:hover{filter:brightness(1.05)}
   #owm-toast[hidden]{display:none}
   @media (max-width:600px){ #owm-toast{font-size:11.5px;padding:8px 12px;max-width:90vw;white-space:normal;text-align:center} }
+  /* status toast: layer/location messages ("live grid unavailable…") sit in the middle of the screen,
+     separate from the layer row, and go away on the next tap anywhere */
+  #msg-toast{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:40;max-width:min(84vw,420px);
+    background:rgba(14,20,34,.94);border:1px solid var(--line);border-radius:14px;padding:13px 18px;
+    font:600 13.5px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:var(--ink);text-align:center;
+    box-shadow:0 14px 40px rgba(0,0,0,.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);pointer-events:none}
+  #msg-toast[hidden]{display:none}
+  /* settings sheet: iOS-style rows with green pill switches */
+  #bar label.ck{display:flex;flex-direction:row-reverse;justify-content:space-between;align-items:center;gap:12px;
+    padding:8px 0;border-top:1px solid rgba(255,255,255,.08);cursor:pointer;color:#e6e9ee;font:15px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
+  #bar label.ck input[type=checkbox]{appearance:none;-webkit-appearance:none;flex:0 0 auto;width:51px;height:31px;border-radius:16px;
+    background:#636871;position:relative;margin:0;cursor:pointer;transition:background .2s;outline:none;border:0}
+  #bar label.ck input[type=checkbox]::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;
+    background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.35);transition:transform .2s}
+  #bar label.ck input[type=checkbox]:checked{background:#34C759}
+  #bar label.ck input[type=checkbox]:checked::after{transform:translateX(20px)}
+  #bar .grp{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;font:14px/1.3 -apple-system,system-ui,sans-serif}
+  #bar .grp>label{flex:0 0 auto;font-weight:600}
+  #bar .owmkey{flex:1 1 150px;min-width:0;width:auto;font-size:14px;padding:8px 10px}
+  #bar .sheet-sub{font:600 11px/1 -apple-system,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#9aa3af;margin:6px 0 -6px}
+  #bar .contact-line{font:13.5px/1.4 -apple-system,system-ui,sans-serif;color:#cdd3db;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)}
+  #bar .contact-line a{color:var(--home);text-decoration:none;font-weight:600}
+  #bar .grp.slide,#bar .slide{color:#cdd3db;font:14px/1.3 -apple-system,system-ui,sans-serif}
   /* scale bar / legend on the left edge, under the button cluster */
-  #scalebar{position:absolute;left:12px;top:150px;z-index:14;background:var(--panel);border:1px solid var(--line);
+  #scalebar{position:absolute;left:12px;bottom:62px;z-index:14;background:var(--panel);border:1px solid var(--line);
     border-radius:10px;padding:8px 10px;font:11px/1.2 -apple-system,system-ui,sans-serif;color:var(--ink);
     -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 3px 12px rgba(0,0,0,.28)}
   #scalebar[hidden]{display:none}
@@ -311,17 +345,21 @@
   #scalebar .sb-wrap{display:flex;gap:6px}
   #scalebar .sb-bar{width:14px;height:150px;border-radius:4px;border:1px solid rgba(0,0,0,.25)}
   #scalebar .sb-ticks{display:flex;flex-direction:column;justify-content:space-between;color:var(--muted);font-variant-numeric:tabular-nums}
-  @media (max-width:600px){ #scalebar{top:140px;padding:6px 8px} #scalebar .sb-bar{height:120px} }
+  #scalebar .sb-ticks.sb-abs{display:block;position:relative;width:30px}
+  #scalebar .sb-tick{position:absolute;left:0;transform:translateY(50%);line-height:1;white-space:nowrap}
+  #scalebar .sb-tick::before{content:"";display:inline-block;width:5px;height:1px;background:var(--muted);vertical-align:middle;margin:0 3px 0 -6px}
+  @media (max-width:600px){ #scalebar{bottom:60px;padding:6px 8px} #scalebar .sb-bar{height:110px} }
   /* attribution chips sit bottom-left, above the layer row (clear of the top cluster) */
-  #owm-attrib,#iso-attrib{top:auto;bottom:58px;left:12px}
-  #iso-attrib{bottom:58px}
+  #owm-attrib,#iso-attrib{top:auto;bottom:140px;left:auto;right:12px}   /* bottom-right, above News/Settings; the legend owns bottom-left */
+  #iso-attrib{bottom:140px}
   @media (max-width:600px){
-    #ov-tl .brand{height:30px}
-    #ov-tl .brand svg{height:30px!important}
+    #ov-tl .brand{height:36px}
+    #ov-tl .brand svg{height:36px!important}
     .ovbtn{padding:7px 9px;font-size:11.5px}
     #layerbar{gap:3px;padding:5px 6px}
     #layerbar button{padding:6px 7px;font-size:11px}
-    #owm-attrib,#iso-attrib{bottom:64px}
+    #owm-attrib,#iso-attrib{bottom:136px}
+    #ov-br{bottom:60px}
   }
 </style>
 <link rel="manifest" href="manifest.webmanifest">
@@ -339,12 +377,13 @@
 <body>
 <div class="bar ui" id="bar">
   <h2 class="sheet-h">Settings</h2>
+  <div class="grp"><label>OWM key</label><input type="text" id="owmKey" class="owmkey" placeholder="OpenWeatherMap key (for HD tiles)" autocomplete="off" spellcheck="false"><span id="owm-status" class="owmstat"></span><a class="owmget owmlink" href="https://home.openweathermap.org/users/sign_up" target="_blank" rel="noopener">Get a free key ↗</a></div>
+  <label class="ck"><input type="checkbox" id="ckHD"> HD tiles for Temp/Precip/Cloud/Wind (needs OWM key)</label>
+  <label class="ck"><input type="checkbox" id="ckF"> Fahrenheit (°F)</label>
   <label class="ck"><input type="checkbox" id="ckStations" checked> Stations</label>
   <label class="ck"><input type="checkbox" id="ckBorders" checked> Borders</label>
   <label class="ck"><input type="checkbox" id="ckGrat" checked> Graticule</label>
   <label class="ck"><input type="checkbox" id="ckIsoFill" checked> Pressure colour fill</label>
-  <label class="ck"><input type="checkbox" id="ckHD"> HD tiles for Temp/Precip/Cloud/Wind (needs OWM key)</label>
-  <div class="grp"><label>OWM key</label><input type="text" id="owmKey" class="owmkey" placeholder="OpenWeatherMap key (for HD tiles)" autocomplete="off" spellcheck="false"><span id="owm-status" class="owmstat"></span><a class="owmget owmlink" href="https://home.openweathermap.org/users/sign_up" target="_blank" rel="noopener">Get a free key ↗</a></div>
   <div id="owm-help" class="owm-help">
     <b>Free OpenWeatherMap key — about 2 minutes</b>
     <ol>
@@ -356,6 +395,7 @@
   </div>
   <div class="slide" id="meridianWrap">Center&nbsp;<input type="range" id="meridian" min="-180" max="180" value="0" step="5"><span id="mval">0°</span></div>
   <button class="btn" id="about-btn" title="About &amp; credits">ⓘ About &amp; credits</button>
+  <div class="contact-line">Contact us: <a href="mailto:hello@weatherglass.live">hello@weatherglass.live</a> · <a href="https://weatherglass.live/support" target="_blank" rel="noopener">weatherglass.live/support</a></div>
   <div class="hint" id="hint">Drag to rotate · wheel to zoom.</div>
   <span class="zi" id="count"></span>
   <span class="zi" id="zoominfo"></span>
@@ -408,17 +448,13 @@
 <path d="M523.02421875 141.7890625Q518.97734375 141.7890625 516.93583984375 143.162109375Q514.8943359375 144.53515625 514.8943359375 147.208984375Q514.8943359375 149.666015625 516.53837890625 151.05712890625Q518.182421875 152.4482421875 521.1091796875 152.4482421875Q524.75859375 152.4482421875 527.2517578125 149.82861328125Q529.744921875 147.208984375 529.744921875 143.2705078125V141.7890625ZM542.7888671875 136.9111328125V160.0H529.744921875V154.001953125Q527.143359375 157.6875 523.89140625 159.36767578125Q520.639453125 161.0478515625 515.9783203125 161.0478515625Q509.6912109375 161.0478515625 505.77080078125 157.38037109375Q501.850390625 153.712890625 501.850390625 147.859375Q501.850390625 140.7412109375 506.74638671875 137.4169921875Q511.6423828125 134.0927734375 522.1208984375 134.0927734375H529.744921875V133.0810546875Q529.744921875 130.009765625 527.3240234375 128.58251953125Q524.903125 127.1552734375 519.772265625 127.1552734375Q515.6169921875 127.1552734375 512.03984375 127.986328125Q508.4626953125 128.8173828125 505.39140625 130.4794921875V120.615234375Q509.5466796875 119.603515625 513.7380859375 119.07958984375Q517.9294921875 118.5556640625 522.1208984375 118.5556640625Q533.069140625 118.5556640625 537.92900390625 122.87353515625Q542.7888671875 127.19140625 542.7888671875 136.9111328125ZM582.4373046875 120.7958984375V130.6240234375Q578.28203125 128.8896484375 574.4158203125 128.0224609375Q570.549609375 127.1552734375 567.1169921875 127.1552734375Q563.4314453125 127.1552734375 561.64287109375 128.07666015625Q559.854296875 128.998046875 559.854296875 130.9130859375Q559.854296875 132.466796875 561.20927734375 133.2978515625Q562.5642578125 134.12890625 566.069140625 134.5263671875L568.3455078125 134.8515625Q578.28203125 136.1162109375 581.7146484375 139.0068359375Q585.147265625 141.8974609375 585.147265625 148.076171875Q585.147265625 154.5439453125 580.377734375 157.7958984375Q575.608203125 161.0478515625 566.14140625 161.0478515625Q562.1306640625 161.0478515625 557.84892578125 160.41552734375Q553.5671875 159.783203125 549.0505859375 158.5185546875V148.6904296875Q552.916796875 150.5693359375 556.98173828125 151.5087890625Q561.0466796875 152.4482421875 565.2380859375 152.4482421875Q569.03203125 152.4482421875 570.9470703125 151.400390625Q572.862109375 150.3525390625 572.862109375 148.29296875Q572.862109375 146.55859375 571.54326171875 145.70947265625Q570.2244140625 144.8603515625 566.2859375 144.390625L564.0095703125 144.1015625Q555.373828125 143.017578125 551.905078125 140.0908203125Q548.436328125 137.1640625 548.436328125 131.2021484375Q548.436328125 124.7705078125 552.84453125 121.6630859375Q557.252734375 118.5556640625 566.358203125 118.5556640625Q569.9353515625 118.5556640625 573.873828125 119.09765625Q577.8123046875 119.6396484375 582.4373046875 120.7958984375ZM622.483203125 120.7958984375V130.6240234375Q618.3279296875 128.8896484375 614.46171875 128.0224609375Q610.5955078125 127.1552734375 607.162890625 127.1552734375Q603.47734375 127.1552734375 601.68876953125 128.07666015625Q599.9001953125 128.998046875 599.9001953125 130.9130859375Q599.9001953125 132.466796875 601.25517578125 133.2978515625Q602.61015625 134.12890625 606.1150390625 134.5263671875L608.39140625 134.8515625Q618.3279296875 136.1162109375 621.760546875 139.0068359375Q625.1931640625 141.8974609375 625.1931640625 148.076171875Q625.1931640625 154.5439453125 620.4236328125 157.7958984375Q615.6541015625 161.0478515625 606.1873046875 161.0478515625Q602.1765625 161.0478515625 597.89482421875 160.41552734375Q593.6130859375 159.783203125 589.096484375 158.5185546875V148.6904296875Q592.9626953125 150.5693359375 597.02763671875 151.5087890625Q601.092578125 152.4482421875 605.283984375 152.4482421875Q609.0779296875 152.4482421875 610.99296875 151.400390625Q612.9080078125 150.3525390625 612.9080078125 148.29296875Q612.9080078125 146.55859375 611.58916015625 145.70947265625Q610.2703125 144.8603515625 606.3318359375 144.390625L604.05546875 144.1015625Q595.4197265625 143.017578125 591.9509765625 140.0908203125Q588.4822265625 137.1640625 588.4822265625 131.2021484375Q588.4822265625 124.7705078125 592.8904296875 121.6630859375Q597.2986328125 118.5556640625 606.4041015625 118.5556640625Q609.98125 118.5556640625 613.9197265625 119.09765625Q617.858203125 119.6396484375 622.483203125 120.7958984375Z" fill="#218A91"/>
 <path d="M277.1 96.0L277.1 96.0L274.7 84.8Q274.6 84.0 274.3 83.6Q274.0 83.3 273.5 83.3L273.5 83.3Q273.4 83.3 273.4 83.2Q273.4 83.1 273.5 83.1L273.5 83.1Q273.8 83.1 274.2 83.1Q274.6 83.1 275.0 83.1L275.0 83.1Q275.4 83.1 275.7 83.1Q276.1 83.1 276.3 83.1L276.3 83.1Q276.4 83.1 276.4 83.2Q276.4 83.3 276.3 83.3L276.3 83.3Q275.8 83.3 275.7 83.5Q275.6 83.7 275.8 84.6L275.8 84.6L278.0 94.8L277.3 95.8L283.0 84.6Q283.4 83.9 283.2 83.6Q283.0 83.3 282.0 83.3L282.0 83.3Q281.9 83.3 281.9 83.2Q281.9 83.1 282.0 83.1L282.0 83.1Q282.4 83.1 282.8 83.1Q283.1 83.1 283.7 83.1L283.7 83.1Q284.2 83.1 284.5 83.1Q284.8 83.1 285.3 83.1L285.3 83.1Q285.4 83.1 285.4 83.2Q285.4 83.3 285.3 83.3L285.3 83.3Q284.9 83.3 284.6 83.4Q284.3 83.5 284.0 83.8Q283.7 84.1 283.4 84.7L283.4 84.7L277.5 96.0Q277.5 96.1 277.3 96.1Q277.1 96.1 277.1 96.0ZM272.4 96.0L272.4 96.0L270.0 84.8Q269.9 84.0 269.6 83.6Q269.3 83.3 268.7 83.3L268.7 83.3Q268.7 83.3 268.7 83.2Q268.7 83.1 268.7 83.1L268.7 83.1Q269.1 83.1 269.5 83.1Q269.9 83.1 270.2 83.1L270.2 83.1Q270.9 83.1 271.3 83.1Q271.8 83.1 272.2 83.1L272.2 83.1Q272.3 83.1 272.3 83.2Q272.3 83.3 272.2 83.3L272.2 83.3Q271.5 83.3 271.2 83.6Q270.9 83.8 271.0 84.6L271.0 84.6L273.3 94.8L272.6 95.8L276.0 89.0L276.3 89.3L272.8 96.0Q272.7 96.1 272.6 96.1Q272.4 96.1 272.4 96.0ZM278.7 84.7L276.4 89.3L276.2 89.0L278.4 84.6Q278.8 83.9 278.7 83.6Q278.6 83.3 278.0 83.3L278.0 83.3Q277.9 83.3 277.9 83.2Q277.9 83.1 278.0 83.1L278.0 83.1Q278.2 83.1 278.5 83.1Q278.7 83.1 279.1 83.1L279.1 83.1Q279.6 83.1 279.9 83.1Q280.2 83.1 280.7 83.1L280.7 83.1Q280.7 83.1 280.7 83.2Q280.7 83.3 280.7 83.3L280.7 83.3Q280.3 83.3 280.0 83.4Q279.7 83.5 279.4 83.8Q279.0 84.1 278.7 84.7L278.7 84.7ZM285.3 96.2L285.3 96.2Q285.0 96.2 284.9 96.1Q284.9 96.1 284.9 96.0L284.9 96.0Q284.9 96.0 285.0 95.5Q285.1 95.0 285.2 94.5L285.2 94.5L287.3 83.0Q287.5 82.4 287.2 82.2Q286.8 82.0 285.9 82.5L285.9 82.5Q285.8 82.5 285.7 82.4Q285.7 82.3 285.8 82.2L285.8 82.2L288.3 81.0Q288.4 81.0 288.5 81.0Q288.5 81.1 288.5 81.2L288.5 81.2L285.8 95.9Q285.8 96.2 285.3 96.2ZM290.5 96.2L290.5 96.2Q290.0 96.2 289.9 95.7Q289.8 95.3 290.0 94.2L290.0 94.2L290.6 90.9Q290.8 89.6 290.7 89.0Q290.5 88.4 289.8 88.4L289.8 88.4Q289.1 88.4 288.4 89.3Q287.6 90.2 286.9 91.8Q286.3 93.5 285.8 95.9L285.8 95.9L285.6 95.9Q286.0 93.5 286.8 91.6Q287.5 89.8 288.4 88.8Q289.4 87.7 290.4 87.7L290.4 87.7Q291.3 87.7 291.6 88.4Q291.8 89.0 291.6 90.5L291.6 90.5L290.9 94.2Q290.8 94.8 290.9 95.1Q291.0 95.4 291.2 95.4L291.2 95.4Q291.5 95.4 291.9 95.1Q292.2 94.9 292.7 94.4L292.7 94.4Q292.8 94.3 292.9 94.4Q292.9 94.5 292.9 94.6L292.9 94.6Q292.2 95.3 291.6 95.8Q291.1 96.2 290.5 96.2ZM296.5 96.2L296.5 96.2Q295.4 96.2 294.8 95.7Q294.2 95.1 294.0 94.2Q293.8 93.2 294.0 92.2L294.0 92.2Q294.1 91.4 294.5 90.6Q294.9 89.8 295.6 89.2Q296.2 88.5 297.0 88.1Q297.8 87.7 298.6 87.7L298.6 87.7Q299.4 87.7 299.7 88.0Q300.1 88.3 300.0 88.9L300.0 88.9Q299.9 89.3 299.4 89.8Q298.9 90.2 298.2 90.6Q297.4 90.9 296.5 91.2Q295.6 91.5 294.7 91.6L294.7 91.6L294.7 91.3Q296.3 91.1 297.4 90.6Q298.5 90.1 298.8 89.3L298.8 89.3Q298.9 88.7 298.5 88.5Q298.2 88.3 297.7 88.3L297.7 88.3Q297.0 88.3 296.4 88.7Q295.9 89.2 295.5 89.9Q295.2 90.6 295.0 91.5L295.0 91.5Q294.8 92.7 295.0 93.6Q295.2 94.5 295.7 95.0Q296.3 95.6 297.2 95.6L297.2 95.6Q297.7 95.6 298.2 95.4Q298.8 95.3 299.3 94.9L299.3 94.9Q299.4 94.9 299.4 94.9Q299.5 95.0 299.4 95.1L299.4 95.1Q298.7 95.7 297.9 96.0Q297.2 96.2 296.5 96.2ZM302.5 95.9L302.5 95.9L302.3 95.9Q302.4 95.0 302.7 93.9Q303.1 92.8 303.5 91.7Q303.9 90.7 304.4 89.8Q304.8 88.9 305.3 88.4Q305.8 87.8 306.2 87.8L306.2 87.8Q306.5 87.8 306.8 88.0Q307.0 88.1 307.2 88.4Q307.3 88.6 307.3 88.9L307.3 88.9Q307.2 89.2 307.1 89.3Q306.9 89.4 306.7 89.4L306.7 89.4Q306.4 89.4 306.2 89.2Q306.1 89.0 306.0 88.9Q305.9 88.7 305.7 88.7L305.7 88.7Q305.4 88.7 305.0 89.2Q304.7 89.7 304.3 90.5Q303.9 91.3 303.5 92.3Q303.2 93.2 302.9 94.2Q302.6 95.1 302.5 95.9ZM302.0 96.2L302.0 96.2Q301.7 96.2 301.6 96.1Q301.5 96.1 301.5 96.0L301.5 96.0Q301.5 96.0 301.7 95.5Q301.8 94.9 301.9 94.5L301.9 94.5L302.5 90.8Q302.7 89.9 302.6 89.4Q302.6 88.9 302.4 88.8Q302.3 88.6 302.1 88.6L302.1 88.6Q301.8 88.6 301.5 88.8Q301.1 89.1 300.8 89.3L300.8 89.3Q300.8 89.4 300.7 89.3Q300.6 89.2 300.7 89.2L300.7 89.2Q301.3 88.5 301.8 88.2Q302.3 87.8 302.8 87.8L302.8 87.8Q303.2 87.8 303.4 88.1Q303.6 88.3 303.6 89.0Q303.6 89.6 303.4 90.8L303.4 90.8L302.5 95.9Q302.4 96.2 302.0 96.2ZM310.1 96.2L310.1 96.2Q309.0 96.2 308.4 95.7Q307.8 95.1 307.6 94.2Q307.4 93.2 307.6 92.2L307.6 92.2Q307.7 91.4 308.1 90.6Q308.5 89.8 309.2 89.2Q309.8 88.5 310.6 88.1Q311.4 87.7 312.2 87.7L312.2 87.7Q313.0 87.7 313.3 88.0Q313.7 88.3 313.6 88.9L313.6 88.9Q313.5 89.3 313.0 89.8Q312.5 90.2 311.8 90.6Q311.0 90.9 310.1 91.2Q309.2 91.5 308.3 91.6L308.3 91.6L308.3 91.3Q309.9 91.1 311.0 90.6Q312.1 90.1 312.4 89.3L312.4 89.3Q312.5 88.7 312.1 88.5Q311.8 88.3 311.3 88.3L311.3 88.3Q310.6 88.3 310.0 88.7Q309.5 89.2 309.1 89.9Q308.8 90.6 308.6 91.5L308.6 91.5Q308.4 92.7 308.6 93.6Q308.8 94.5 309.3 95.0Q309.9 95.6 310.8 95.6L310.8 95.6Q311.3 95.6 311.8 95.4Q312.4 95.3 312.9 94.9L312.9 94.9Q313.0 94.9 313.0 94.9Q313.1 95.0 313.0 95.1L313.0 95.1Q312.3 95.7 311.5 96.0Q310.8 96.2 310.1 96.2ZM321.2 96.2L321.2 96.2Q320.9 96.2 320.5 96.1Q320.2 95.9 320.0 95.6Q319.8 95.2 320.0 94.6L320.0 94.6L320.9 89.7Q321.0 88.9 320.9 88.7Q320.8 88.5 320.2 88.5L320.2 88.5Q320.1 88.5 320.1 88.4Q320.1 88.3 320.2 88.3L320.2 88.3Q320.8 88.3 321.3 87.8Q321.8 87.4 321.9 86.7L321.9 86.7Q321.9 86.7 322.1 86.7Q322.3 86.7 322.3 86.7L322.3 86.7L321.0 93.9Q320.8 94.8 321.0 95.2Q321.3 95.6 321.9 95.6L321.9 95.6Q322.6 95.6 323.1 95.3Q323.6 95.0 324.0 94.6L324.0 94.6Q324.0 94.6 324.1 94.6Q324.2 94.7 324.2 94.8L324.2 94.8Q323.2 95.6 322.5 95.9Q321.8 96.2 321.2 96.2ZM324.2 88.9L324.2 88.9Q324.1 88.9 323.7 88.8Q323.3 88.8 322.7 88.7Q322.2 88.7 321.7 88.7L321.7 88.7L321.7 88.2Q322.2 88.2 322.8 88.2Q323.5 88.2 324.0 88.1Q324.6 88.1 324.7 88.1L324.7 88.1Q324.8 88.1 324.8 88.1Q324.9 88.2 324.8 88.3L324.8 88.3Q324.8 88.4 324.6 88.7Q324.4 88.9 324.2 88.9ZM326.1 96.2L326.1 96.2Q325.9 96.2 325.8 96.1Q325.7 96.1 325.7 96.0L325.7 96.0Q325.7 96.0 325.8 95.5Q325.9 95.0 326.0 94.5L326.0 94.5L328.2 83.0Q328.3 82.4 328.0 82.2Q327.7 82.0 326.7 82.5L326.7 82.5Q326.6 82.5 326.6 82.4Q326.5 82.3 326.6 82.2L326.6 82.2L329.1 81.0Q329.2 81.0 329.3 81.0Q329.4 81.1 329.4 81.2L329.4 81.2L326.7 95.9Q326.6 96.2 326.1 96.2ZM331.4 96.2L331.4 96.2Q330.9 96.2 330.8 95.7Q330.7 95.3 330.9 94.2L330.9 94.2L331.5 90.9Q331.7 89.6 331.5 89.0Q331.3 88.4 330.7 88.4L330.7 88.4Q330.0 88.4 329.2 89.3Q328.5 90.2 327.8 91.8Q327.1 93.5 326.7 95.9L326.7 95.9L326.5 95.9Q326.9 93.5 327.6 91.6Q328.4 89.8 329.3 88.8Q330.2 87.7 331.2 87.7L331.2 87.7Q332.1 87.7 332.4 88.4Q332.7 89.0 332.4 90.5L332.4 90.5L331.7 94.2Q331.6 94.8 331.7 95.1Q331.8 95.4 332.1 95.4L332.1 95.4Q332.3 95.4 332.7 95.1Q333.1 94.9 333.5 94.4L333.5 94.4Q333.6 94.3 333.7 94.4Q333.8 94.5 333.7 94.6L333.7 94.6Q333.0 95.3 332.5 95.8Q331.9 96.2 331.4 96.2ZM337.3 96.2L337.3 96.2Q336.2 96.2 335.6 95.7Q335.0 95.1 334.8 94.2Q334.6 93.2 334.8 92.2L334.8 92.2Q334.9 91.4 335.4 90.6Q335.8 89.8 336.4 89.2Q337.0 88.5 337.8 88.1Q338.6 87.7 339.5 87.7L339.5 87.7Q340.2 87.7 340.5 88.0Q340.9 88.3 340.8 88.9L340.8 88.9Q340.7 89.3 340.2 89.8Q339.8 90.2 339.0 90.6Q338.3 90.9 337.4 91.2Q336.5 91.5 335.5 91.6L335.5 91.6L335.6 91.3Q337.2 91.1 338.3 90.6Q339.4 90.1 339.6 89.3L339.6 89.3Q339.8 88.7 339.4 88.5Q339.0 88.3 338.6 88.3L338.6 88.3Q337.8 88.3 337.3 88.7Q336.7 89.2 336.4 89.9Q336.0 90.6 335.9 91.5L335.9 91.5Q335.7 92.7 335.8 93.6Q336.0 94.5 336.6 95.0Q337.1 95.6 338.0 95.6L338.0 95.6Q338.5 95.6 339.1 95.4Q339.6 95.3 340.1 94.9L340.1 94.9Q340.2 94.9 340.3 94.9Q340.3 95.0 340.3 95.1L340.3 95.1Q339.5 95.7 338.8 96.0Q338.0 96.2 337.3 96.2ZM348.0 96.2L348.0 96.2Q347.3 96.2 346.7 95.9Q346.2 95.5 346.2 95.0L346.2 95.0Q346.3 94.7 346.4 94.6Q346.6 94.5 346.8 94.5L346.8 94.5Q347.0 94.5 347.1 94.7Q347.3 94.9 347.4 95.2Q347.5 95.4 347.8 95.6Q348.1 95.8 348.6 95.8L348.6 95.8Q349.2 95.8 349.6 95.5Q349.9 95.2 350.0 94.5L350.0 94.5Q350.1 93.8 349.9 93.4Q349.6 92.9 349.1 92.5Q348.7 92.1 348.2 91.8Q347.8 91.4 347.6 90.9Q347.3 90.5 347.4 89.8L347.4 89.8Q347.5 89.1 348.0 88.7Q348.4 88.2 349.0 88.0Q349.5 87.8 350.1 87.8L350.1 87.8Q350.8 87.8 351.2 88.1Q351.7 88.4 351.7 88.8L351.7 88.8Q351.6 89.0 351.4 89.2Q351.3 89.3 351.1 89.3L351.1 89.3Q350.9 89.3 350.7 89.1Q350.5 89.0 350.4 88.8Q350.2 88.5 350.0 88.4Q349.8 88.2 349.4 88.2L349.4 88.2Q349.0 88.2 348.6 88.4Q348.3 88.6 348.2 89.1L348.2 89.1Q348.1 89.7 348.4 90.2Q348.7 90.6 349.1 91.0Q349.6 91.4 350.0 91.8Q350.4 92.2 350.7 92.7Q351.0 93.2 350.9 93.9L350.9 93.9Q350.8 94.5 350.3 95.0Q349.9 95.6 349.3 95.9Q348.7 96.2 348.0 96.2ZM353.5 96.2L353.5 96.2Q353.2 96.2 353.1 96.1Q353.0 96.1 353.0 96.0L353.0 96.0Q353.0 96.0 353.1 95.5Q353.3 95.0 353.3 94.5L353.3 94.5L355.5 83.0Q355.6 82.4 355.3 82.2Q355.0 82.0 354.0 82.5L354.0 82.5Q353.9 82.5 353.9 82.4Q353.8 82.3 353.9 82.2L353.9 82.2L356.5 81.0Q356.5 81.0 356.6 81.0Q356.7 81.1 356.7 81.2L356.7 81.2L354.8 91.7L354.0 95.9Q354.0 96.2 353.5 96.2ZM358.5 96.2L358.5 96.2Q358.0 96.2 357.7 95.9Q357.3 95.6 356.9 94.8L356.9 94.8L355.7 92.7Q355.4 92.3 355.2 92.2Q355.0 92.1 354.5 92.2L354.5 92.2L356.3 91.6L357.7 94.1Q358.1 94.9 358.4 95.1Q358.7 95.4 359.0 95.4L359.0 95.4Q359.3 95.4 359.7 95.2Q360.0 94.9 360.5 94.4L360.5 94.4Q360.6 94.4 360.6 94.5Q360.7 94.6 360.7 94.6L360.7 94.6Q359.3 96.2 358.5 96.2ZM354.5 92.2L354.5 92.2L354.5 91.9Q355.9 91.6 356.7 91.3Q357.6 90.9 358.0 90.5Q358.5 90.0 358.6 89.3L358.6 89.3Q358.7 88.8 358.6 88.6Q358.4 88.3 358.0 88.3L358.0 88.3Q356.9 88.3 356.0 89.2Q355.1 90.1 354.8 91.7L354.8 91.7L354.3 91.0Q354.8 90.0 355.5 89.3Q356.2 88.6 357.1 88.2Q358.0 87.7 358.8 87.7L358.8 87.7Q359.4 87.7 359.6 88.0Q359.8 88.2 359.9 88.5Q360.0 88.8 359.9 89.0L359.9 89.0Q359.8 89.6 359.1 90.2Q358.3 90.8 357.2 91.3Q356.0 91.8 354.5 92.2ZM360.4 101.8L360.4 101.8Q360.1 101.8 359.9 101.6Q359.7 101.4 359.7 101.1L359.7 101.1Q359.8 100.6 360.4 100.6L360.4 100.6Q360.9 100.6 361.3 100.5Q361.7 100.5 362.2 100.3Q362.6 100.1 362.9 99.9L362.9 99.9Q363.4 99.6 364.0 98.8Q364.6 98.1 365.2 97.1Q365.9 96.1 366.5 95.1Q367.1 94.0 367.5 93.1Q368.0 92.1 368.1 91.5L368.1 91.5Q368.2 91.0 368.2 90.5Q368.2 90.0 368.1 89.5Q368.0 89.1 367.9 88.8Q367.8 88.5 367.8 88.4L367.8 88.4Q367.8 88.1 368.0 88.0Q368.1 87.8 368.4 87.8L368.4 87.8Q368.8 87.8 369.0 88.1Q369.1 88.4 369.1 88.9L369.1 88.9Q369.1 89.6 368.8 90.7Q368.5 91.7 367.9 93.0Q367.4 94.2 366.6 95.4Q365.9 96.7 365.1 97.8Q364.3 99.0 363.4 99.9Q362.6 100.8 361.8 101.3Q361.0 101.8 360.4 101.8ZM365.6 96.8L364.7 98.2Q364.8 93.7 364.2 91.2Q363.5 88.7 362.3 88.7L362.3 88.7Q362.0 88.7 361.7 88.8Q361.4 89.0 361.2 89.5L361.2 89.5Q361.2 89.5 361.1 89.5Q360.9 89.5 361.0 89.4L361.0 89.4Q361.4 88.6 361.8 88.2Q362.2 87.8 362.8 87.8L362.8 87.8Q363.5 87.8 364.1 88.5Q364.6 89.3 365.0 90.5Q365.4 91.7 365.5 93.4Q365.7 95.0 365.6 96.8L365.6 96.8ZM377.2 96.2L377.2 96.2Q376.9 96.2 376.5 96.1Q376.2 95.9 376.0 95.6Q375.9 95.2 376.0 94.6L376.0 94.6L376.9 89.7Q377.0 88.9 376.9 88.7Q376.8 88.5 376.2 88.5L376.2 88.5Q376.1 88.5 376.1 88.4Q376.1 88.3 376.2 88.3L376.2 88.3Q376.9 88.3 377.3 87.8Q377.8 87.4 378.0 86.7L378.0 86.7Q378.0 86.7 378.1 86.7Q378.3 86.7 378.3 86.7L378.3 86.7L377.0 93.9Q376.8 94.8 377.1 95.2Q377.3 95.6 377.9 95.6L377.9 95.6Q378.6 95.6 379.1 95.3Q379.6 95.0 380.0 94.6L380.0 94.6Q380.0 94.6 380.1 94.6Q380.2 94.7 380.2 94.8L380.2 94.8Q379.2 95.6 378.5 95.9Q377.8 96.2 377.2 96.2ZM380.2 88.9L380.2 88.9Q380.1 88.9 379.7 88.8Q379.3 88.8 378.7 88.7Q378.2 88.7 377.7 88.7L377.7 88.7L377.7 88.2Q378.2 88.2 378.9 88.2Q379.5 88.2 380.0 88.1Q380.6 88.1 380.7 88.1L380.7 88.1Q380.8 88.1 380.8 88.1Q380.9 88.2 380.8 88.3L380.8 88.3Q380.8 88.4 380.6 88.7Q380.4 88.9 380.2 88.9ZM382.5 96.3L382.5 96.3Q381.8 96.3 381.5 95.8Q381.2 95.3 381.3 94.1L381.3 94.1Q381.5 93.0 382.0 91.8Q382.6 90.7 383.3 89.8Q384.1 88.9 385.0 88.3Q385.9 87.7 386.7 87.7L386.7 87.7Q387.1 87.7 387.4 87.9Q387.8 88.0 388.0 88.3Q388.3 88.6 388.3 89.1L388.3 89.1L387.5 88.6Q387.7 88.6 388.1 88.3Q388.4 88.0 388.5 87.6L388.5 87.6Q388.5 87.5 388.6 87.5Q388.7 87.6 388.7 87.6L388.7 87.6L387.5 94.2Q387.3 95.4 387.8 95.4L387.8 95.4Q388.1 95.4 388.5 95.1Q388.8 94.9 389.3 94.4L389.3 94.4Q389.4 94.3 389.4 94.4Q389.5 94.5 389.5 94.6L389.5 94.6Q388.8 95.3 388.2 95.8Q387.7 96.2 387.1 96.2L387.1 96.2Q386.7 96.2 386.6 95.7Q386.4 95.3 386.6 94.2L386.6 94.2L387.1 91.3L387.5 90.9Q386.8 92.4 386.0 93.7Q385.2 94.9 384.3 95.6Q383.4 96.3 382.5 96.3ZM383.1 95.4L383.1 95.4Q383.7 95.4 384.4 94.9Q385.0 94.4 385.6 93.7Q386.2 92.9 386.7 92.0Q387.1 91.1 387.3 90.1L387.3 90.1Q387.5 89.4 387.2 88.9Q386.9 88.4 386.0 88.4L386.0 88.4Q385.3 88.4 384.5 89.1Q383.7 89.7 383.1 90.9Q382.5 92.0 382.3 93.4L382.3 93.4Q382.1 94.3 382.3 94.9Q382.5 95.4 383.1 95.4ZM391.1 96.2L391.1 96.2Q390.8 96.2 390.7 96.1Q390.7 96.1 390.7 96.0L390.7 96.0Q390.7 96.0 390.8 95.5Q390.9 95.0 391.0 94.5L391.0 94.5L393.1 83.0Q393.3 82.4 392.9 82.2Q392.6 82.0 391.7 82.5L391.7 82.5Q391.6 82.5 391.5 82.4Q391.5 82.3 391.6 82.2L391.6 82.2L394.1 81.0Q394.2 81.0 394.3 81.0Q394.3 81.1 394.3 81.2L394.3 81.2L392.4 91.7L391.6 95.9Q391.6 96.2 391.1 96.2ZM396.1 96.2L396.1 96.2Q395.7 96.2 395.3 95.9Q395.0 95.6 394.5 94.8L394.5 94.8L393.3 92.7Q393.1 92.3 392.8 92.2Q392.6 92.1 392.1 92.2L392.1 92.2L393.9 91.6L395.3 94.1Q395.8 94.9 396.1 95.1Q396.4 95.4 396.7 95.4L396.7 95.4Q396.9 95.4 397.3 95.2Q397.7 94.9 398.1 94.4L398.1 94.4Q398.2 94.4 398.3 94.5Q398.4 94.6 398.3 94.6L398.3 94.6Q396.9 96.2 396.1 96.2ZM392.1 92.2L392.1 92.2L392.1 91.9Q393.5 91.6 394.4 91.3Q395.2 90.9 395.7 90.5Q396.1 90.0 396.3 89.3L396.3 89.3Q396.4 88.8 396.2 88.6Q396.0 88.3 395.7 88.3L395.7 88.3Q394.6 88.3 393.7 89.2Q392.8 90.1 392.4 91.7L392.4 91.7L391.9 91.0Q392.4 90.0 393.2 89.3Q393.9 88.6 394.7 88.2Q395.6 87.7 396.5 87.7L396.5 87.7Q397.0 87.7 397.2 88.0Q397.5 88.2 397.5 88.5Q397.6 88.8 397.5 89.0L397.5 89.0Q397.4 89.6 396.7 90.2Q396.0 90.8 394.8 91.3Q393.6 91.8 392.1 92.2ZM401.6 96.2L401.6 96.2Q400.6 96.2 399.9 95.7Q399.3 95.1 399.1 94.2Q398.9 93.2 399.1 92.2L399.1 92.2Q399.3 91.4 399.7 90.6Q400.1 89.8 400.7 89.2Q401.4 88.5 402.1 88.1Q402.9 87.7 403.8 87.7L403.8 87.7Q404.5 87.7 404.9 88.0Q405.2 88.3 405.1 88.9L405.1 88.9Q405.0 89.3 404.5 89.8Q404.1 90.2 403.3 90.6Q402.6 90.9 401.7 91.2Q400.8 91.5 399.8 91.6L399.8 91.6L399.9 91.3Q401.5 91.1 402.6 90.6Q403.7 90.1 403.9 89.3L403.9 89.3Q404.1 88.7 403.7 88.5Q403.3 88.3 402.9 88.3L402.9 88.3Q402.2 88.3 401.6 88.7Q401.0 89.2 400.7 89.9Q400.3 90.6 400.2 91.5L400.2 91.5Q400.0 92.7 400.2 93.6Q400.3 94.5 400.9 95.0Q401.4 95.6 402.3 95.6L402.3 95.6Q402.8 95.6 403.4 95.4Q403.9 95.3 404.4 94.9L404.4 94.9Q404.5 94.9 404.6 94.9Q404.7 95.0 404.6 95.1L404.6 95.1Q403.8 95.7 403.1 96.0Q402.4 96.2 401.6 96.2ZM407.5 96.2L407.5 96.2Q406.8 96.2 406.2 95.9Q405.6 95.5 405.7 95.0L405.7 95.0Q405.8 94.7 405.9 94.6Q406.1 94.5 406.3 94.5L406.3 94.5Q406.5 94.5 406.6 94.7Q406.7 94.9 406.9 95.2Q407.0 95.4 407.3 95.6Q407.5 95.8 408.0 95.8L408.0 95.8Q408.7 95.8 409.0 95.5Q409.4 95.2 409.5 94.5L409.5 94.5Q409.6 93.8 409.3 93.4Q409.1 92.9 408.6 92.5Q408.2 92.1 407.7 91.8Q407.3 91.4 407.0 90.9Q406.8 90.5 406.9 89.8L406.9 89.8Q407.0 89.1 407.4 88.7Q407.9 88.2 408.4 88.0Q409.0 87.8 409.6 87.8L409.6 87.8Q410.2 87.8 410.7 88.1Q411.2 88.4 411.1 88.8L411.1 88.8Q411.1 89.0 410.9 89.2Q410.7 89.3 410.6 89.3L410.6 89.3Q410.3 89.3 410.2 89.1Q410.0 89.0 409.9 88.8Q409.7 88.5 409.5 88.4Q409.3 88.2 408.8 88.2L408.8 88.2Q408.4 88.2 408.1 88.4Q407.8 88.6 407.7 89.1L407.7 89.1Q407.6 89.7 407.9 90.2Q408.1 90.6 408.6 91.0Q409.0 91.4 409.5 91.8Q409.9 92.2 410.2 92.7Q410.4 93.2 410.3 93.9L410.3 93.9Q410.2 94.5 409.8 95.0Q409.4 95.6 408.8 95.9Q408.2 96.2 407.5 96.2ZM418.5 96.2L418.5 96.2Q417.8 96.2 417.2 95.9Q416.6 95.5 416.7 95.0L416.7 95.0Q416.8 94.7 416.9 94.6Q417.1 94.5 417.3 94.5L417.3 94.5Q417.5 94.5 417.6 94.7Q417.7 94.9 417.9 95.2Q418.0 95.4 418.3 95.6Q418.5 95.8 419.1 95.8L419.1 95.8Q419.7 95.8 420.0 95.5Q420.4 95.2 420.5 94.5L420.5 94.5Q420.6 93.8 420.3 93.4Q420.1 92.9 419.6 92.5Q419.2 92.1 418.7 91.8Q418.3 91.4 418.0 90.9Q417.8 90.5 417.9 89.8L417.9 89.8Q418.0 89.1 418.5 88.7Q418.9 88.2 419.4 88.0Q420.0 87.8 420.6 87.8L420.6 87.8Q421.3 87.8 421.7 88.1Q422.2 88.4 422.1 88.8L422.1 88.8Q422.1 89.0 421.9 89.2Q421.8 89.3 421.6 89.3L421.6 89.3Q421.3 89.3 421.2 89.1Q421.0 89.0 420.9 88.8Q420.7 88.5 420.5 88.4Q420.3 88.2 419.8 88.2L419.8 88.2Q419.5 88.2 419.1 88.4Q418.8 88.6 418.7 89.1L418.7 89.1Q418.6 89.7 418.9 90.2Q419.1 90.6 419.6 91.0Q420.0 91.4 420.5 91.8Q420.9 92.2 421.2 92.7Q421.4 93.2 421.3 93.9L421.3 93.9Q421.2 94.5 420.8 95.0Q420.4 95.6 419.8 95.9Q419.2 96.2 418.5 96.2ZM423.9 96.2L423.9 96.2Q423.7 96.2 423.6 96.1Q423.5 96.1 423.5 96.0L423.5 96.0Q423.5 96.0 423.6 95.5Q423.7 95.0 423.8 94.5L423.8 94.5L426.0 83.0Q426.1 82.4 425.8 82.2Q425.5 82.0 424.5 82.5L424.5 82.5Q424.4 82.5 424.4 82.4Q424.3 82.3 424.4 82.2L424.4 82.2L426.9 81.0Q427.0 81.0 427.1 81.0Q427.2 81.1 427.2 81.2L427.2 81.2L424.5 95.9Q424.4 96.2 423.9 96.2ZM429.2 96.2L429.2 96.2Q428.7 96.2 428.6 95.7Q428.5 95.3 428.7 94.2L428.7 94.2L429.3 90.9Q429.5 89.6 429.3 89.0Q429.1 88.4 428.5 88.4L428.5 88.4Q427.8 88.4 427.0 89.3Q426.3 90.2 425.6 91.8Q424.9 93.5 424.5 95.9L424.5 95.9L424.3 95.9Q424.7 93.5 425.4 91.6Q426.2 89.8 427.1 88.8Q428.0 87.7 429.0 87.7L429.0 87.7Q429.9 87.7 430.2 88.4Q430.5 89.0 430.2 90.5L430.2 90.5L429.5 94.2Q429.4 94.8 429.5 95.1Q429.6 95.4 429.9 95.4L429.9 95.4Q430.1 95.4 430.5 95.1Q430.9 94.9 431.3 94.4L431.3 94.4Q431.4 94.3 431.5 94.4Q431.6 94.5 431.5 94.6L431.5 94.6Q430.8 95.3 430.3 95.8Q429.7 96.2 429.2 96.2ZM433.5 96.3L433.5 96.3Q432.8 96.3 432.5 95.8Q432.1 95.3 432.3 94.1L432.3 94.1Q432.4 93.0 433.0 91.8Q433.5 90.7 434.3 89.8Q435.1 88.9 436.0 88.3Q436.8 87.7 437.7 87.7L437.7 87.7Q438.0 87.7 438.4 87.9Q438.7 88.0 439.0 88.3Q439.2 88.6 439.3 89.1L439.3 89.1L438.5 88.6Q438.7 88.6 439.0 88.3Q439.4 88.0 439.4 87.6L439.4 87.6Q439.5 87.5 439.6 87.5Q439.7 87.6 439.7 87.6L439.7 87.6L438.5 94.2Q438.3 95.4 438.8 95.4L438.8 95.4Q439.1 95.4 439.4 95.1Q439.8 94.9 440.3 94.4L440.3 94.4Q440.3 94.3 440.4 94.4Q440.5 94.5 440.4 94.6L440.4 94.6Q439.7 95.3 439.2 95.8Q438.6 96.2 438.1 96.2L438.1 96.2Q437.6 96.2 437.5 95.7Q437.4 95.3 437.6 94.2L437.6 94.2L438.1 91.3L438.4 90.9Q437.8 92.4 437.0 93.7Q436.1 94.9 435.2 95.6Q434.3 96.3 433.5 96.3ZM434.1 95.4L434.1 95.4Q434.7 95.4 435.3 94.9Q436.0 94.4 436.6 93.7Q437.2 92.9 437.7 92.0Q438.1 91.1 438.3 90.1L438.3 90.1Q438.5 89.4 438.1 88.9Q437.8 88.4 437.0 88.4L437.0 88.4Q436.3 88.4 435.5 89.1Q434.7 89.7 434.1 90.9Q433.4 92.0 433.2 93.4L433.2 93.4Q433.1 94.3 433.3 94.9Q433.5 95.4 434.1 95.4ZM443.1 101.2L439.6 101.7Q439.5 101.7 439.5 101.6Q439.5 101.5 439.6 101.4L439.6 101.4Q440.1 101.4 440.3 101.2Q440.5 101.1 440.7 100.8Q440.8 100.5 440.9 99.8L440.9 99.8L443.0 88.0Q443.0 87.9 443.1 87.8Q443.2 87.7 443.4 87.5Q443.6 87.3 443.7 87.1Q443.9 86.8 443.9 86.5L443.9 86.5Q443.9 86.4 444.1 86.5Q444.2 86.5 444.2 86.6L444.2 86.6L441.8 99.7Q441.7 100.5 441.9 100.8Q442.2 101.1 443.1 100.9L443.1 100.9Q443.1 100.9 443.2 101.0Q443.2 101.2 443.1 101.2L443.1 101.2ZM443.8 96.0L443.8 96.0Q442.9 96.0 442.6 96.0Q442.2 95.9 441.9 95.8L441.9 95.8L442.1 94.8Q442.5 95.1 443.0 95.3Q443.6 95.4 444.3 95.4L444.3 95.4Q445.3 95.4 445.9 94.9Q446.6 94.4 447.0 93.5Q447.4 92.6 447.6 91.4L447.6 91.4Q447.7 90.7 447.6 90.1Q447.5 89.4 447.2 89.0Q446.8 88.5 445.9 88.5L445.9 88.5Q445.0 88.5 444.0 89.1Q443.0 89.7 441.7 90.7L441.7 90.7Q441.7 90.7 441.6 90.6Q441.5 90.6 441.6 90.5L441.6 90.5Q442.8 89.4 444.1 88.7Q445.4 87.9 446.7 87.9L446.7 87.9Q447.8 87.9 448.3 88.6Q448.8 89.4 448.6 90.8L448.6 90.8Q448.4 91.8 448.0 92.8Q447.5 93.7 446.8 94.5Q446.2 95.2 445.4 95.6Q444.6 96.0 443.8 96.0ZM452.4 96.2L452.4 96.2Q451.3 96.2 450.7 95.7Q450.1 95.1 449.9 94.2Q449.7 93.2 449.9 92.2L449.9 92.2Q450.0 91.4 450.4 90.6Q450.8 89.8 451.5 89.2Q452.1 88.5 452.9 88.1Q453.7 87.7 454.5 87.7L454.5 87.7Q455.2 87.7 455.6 88.0Q455.9 88.3 455.8 88.9L455.8 88.9Q455.7 89.3 455.3 89.8Q454.8 90.2 454.1 90.6Q453.3 90.9 452.4 91.2Q451.5 91.5 450.6 91.6L450.6 91.6L450.6 91.3Q452.2 91.1 453.3 90.6Q454.4 90.1 454.6 89.3L454.6 89.3Q454.8 88.7 454.4 88.5Q454.1 88.3 453.6 88.3L453.6 88.3Q452.9 88.3 452.3 88.7Q451.8 89.2 451.4 89.9Q451.1 90.6 450.9 91.5L450.9 91.5Q450.7 92.7 450.9 93.6Q451.1 94.5 451.6 95.0Q452.2 95.6 453.1 95.6L453.1 95.6Q453.6 95.6 454.1 95.4Q454.7 95.3 455.2 94.9L455.2 94.9Q455.2 94.9 455.3 94.9Q455.4 95.0 455.3 95.1L455.3 95.1Q454.5 95.7 453.8 96.0Q453.1 96.2 452.4 96.2ZM457.5 96.2L457.5 96.2Q457.2 96.2 457.0 96.0Q456.7 95.8 456.7 95.4L456.7 95.4Q456.7 95.1 457.0 94.9Q457.2 94.7 457.5 94.7L457.5 94.7Q457.9 94.7 458.1 94.9Q458.4 95.1 458.4 95.4L458.4 95.4Q458.4 96.2 457.5 96.2Z" fill="#2C8C93"/>
 </svg></div>
-    <div class="ovrow">
+    <div class="ovcol">
       <span class="ovsplit">
         <button class="ovbtn ovbtn-main" id="btn-home" title="Centre on your home">🏠 Home</button>
         <button class="ovbtn ovbtn-caret" id="btn-home-caret" title="Home positions &amp; pins" aria-label="Home menu">▾</button>
       </span>
       <button class="ovbtn" id="btn-loc" title="Use my current location">📍 Location</button>
       <button class="ovbtn" id="btn-search" title="Search a place">🔍 Search</button>
-    </div>
-    <div class="ovrow">
-      <button class="ovbtn" id="wx-news" title="Tour major weather events worldwide (GDACS)">🌐 News</button>
-      <button class="ovbtn" id="btn-settings" title="Settings &amp; layers">⚙ Settings</button>
     </div>
     <!-- Home dropdown: pin current view + saved homes -->
     <div id="homeMenu" class="ovmenu" hidden>
@@ -448,6 +484,11 @@
       <button class="ovbtn zbtn" id="z-out" title="Zoom out">－</button>
     </div>
   </div>
+  <!-- bottom-right: News + Settings, just above the layer row -->
+  <div id="ov-br" class="ui">
+    <button class="ovbtn" id="wx-news" title="Tour major weather events worldwide (GDACS)">🌐 News</button>
+    <button class="ovbtn" id="btn-settings" title="Settings &amp; layers">⚙ Settings</button>
+  </div>
   <!-- live-layer buttons in one row under the globe -->
   <div id="layerbar" class="ui">
     <button data-l="off" class="on">Off</button>
@@ -460,6 +501,7 @@
   </div>
   <a id="owm-toast" class="ui" href="https://home.openweathermap.org/users/sign_up" target="_blank" rel="noopener" hidden>🔑 Get a free OWM key for high-resolution images ↗</a>
   <div id="wx-news-out" class="wxnews-toast" hidden></div>
+  <div id="msg-toast" class="ui" role="status" hidden></div>
   <div id="owm-attrib" class="ui" hidden>Weather © OpenWeatherMap</div>
   <div id="iso-attrib" class="ui" hidden>Pressure © Open-Meteo · CC-BY 4.0</div>
   </div>
@@ -540,6 +582,13 @@
 <script>
 "use strict";
 const GEO = JSON.parse(document.getElementById("geo").textContent);
+// ---------- temperature units: every temperature is stored in °C and converted only at display ----------
+var tempF=false;
+function tConv(c){ return (c==null||isNaN(c)) ? null : (tempF ? c*9/5+32 : c); }
+function tArr(a){ return tempF ? (a||[]).map(v=>(v==null||isNaN(v))?null:v*9/5+32) : a; }
+function tUnit(){ return tempF ? "°F" : "°C"; }
+function fT(c,dec){ const v=tConv(c); return v==null ? "–" : (dec?v.toFixed(dec):String(Math.round(v)))+"°"; }   // "23°" / "73°"
+window.WXUNITS={ conv:tConv, arr:tArr, unit:tUnit, fmt:fT, get f(){ return tempF; } };
 // stations: [lng, lat, warmMean|null, name, cc]
 const LOD = GEO.coastLod;                 // {tiers:{world,regional,detail?}, median_km, scales}
 let activeTier = {name:"regional", key:"regional", rings:(LOD.tiers.regional||[])};
@@ -688,7 +737,7 @@ function fetchHomeConditions(){
   get(s.url+"/v1/forecast?latitude="+lat+"&longitude="+lon+"&current=weather_code,temperature_2m&timezone=auto").then(r=>r.json()).then(j=>{
     const arr=Array.isArray(j)?j:[j], desc=(window.WXLIVE&&window.WXLIVE.wxDesc);
     arr.forEach((o,k)=>{ const c=o&&o.current; if(!c||!homes[k])return;
-      const t=(c.temperature_2m!=null)?Math.round(c.temperature_2m)+"° ":"";   // temperature before condition
+      const t=(c.temperature_2m!=null)?fT(c.temperature_2m)+" ":"";   // temperature before condition
       homes[k].wx = t + (desc?desc(c.weather_code):""); });
     requestAnimationFrame(render);
   }).catch(()=>{});
@@ -894,18 +943,21 @@ function parseNormals(t){
            pr:m(/[Aa]nnual precipitation ([\d,]+)\s*mm/),
            el:m(/[Ee]levation ([\d,]+)\s*m/) };
 }
+function cardStatsHtml(s){                      // the normals tiles (temperatures in the chosen unit)
+  const n=parseNormals(s[5]);
+  const stat=(k,v)=>v?`<div class="card-stat"><div class="k">${k}</div><div class="v">${escapeHtml(v)}</div></div>`:"";
+  let g="";
+  if(n.warm) g+=stat("Warmest",fT(+n.warm[1],tempF?0:1).replace("°",tUnit())+" · "+n.warm[0]);
+  if(n.cold) g+=stat("Coldest",fT(+n.cold[1],tempF?0:1).replace("°",tUnit())+" · "+n.cold[0]);
+  if(n.pr)   g+=stat("Annual precip",n.pr[0]+" mm");
+  if(n.el)   g+=stat("Elevation",n.el[0]+" m");
+  return g;
+}
 function renderCard(s){
   document.getElementById("card-title").textContent=s[3]||"—";
   document.getElementById("card-place").textContent=
     (s[4]?s[4].replace(/_/g," "):"")+"  ·  "+s[1].toFixed(2)+"°, "+s[0].toFixed(2)+"°";
-  const n=parseNormals(s[5]);
-  const stat=(k,v)=>v?`<div class="card-stat"><div class="k">${k}</div><div class="v">${escapeHtml(v)}</div></div>`:"";
-  let g="";
-  if(n.warm) g+=stat("Warmest",n.warm[1]+"°C · "+n.warm[0]);
-  if(n.cold) g+=stat("Coldest",n.cold[1]+"°C · "+n.cold[0]);
-  if(n.pr)   g+=stat("Annual precip",n.pr[0]+" mm");
-  if(n.el)   g+=stat("Elevation",n.el[0]+" m");
-  document.getElementById("card-stats").innerHTML=g;
+  document.getElementById("card-stats").innerHTML=cardStatsHtml(s);
   document.getElementById("card-text").textContent=s[5]||"";
   document.getElementById("card-foot").textContent="Normals 1991–2020 · WMO / NCEI · baked, read offline";
   setActive(s[1],s[0],s[3]);
@@ -1046,6 +1098,16 @@ for(const [id,key] of [["ckStations","stations"],["ckGrat","grat"],["ckBorders",
 document.getElementById("ckIsoFill").addEventListener("change",e=>{ isoFill=e.target.checked; if(typeof savePrefs==="function")savePrefs(); requestAnimationFrame(render); });
 document.getElementById("ckHD").addEventListener("change",e=>{ hdMode=e.target.checked; if(typeof savePrefs==="function")savePrefs();
   if(liveLayer!=="off") applyLiveLayer(liveLayer); });   // re-apply to swap grid field ↔ OWM tiles
+// °C ↔ °F: redraw everything that shows a temperature (card tabs re-run their current range, legend, home pins)
+function refreshUnits(){
+  if(typeof updateLegend==="function") updateLegend();
+  if(selected && document.getElementById("card-stats")) document.getElementById("card-stats").innerHTML=cardStatsHtml(selected);
+  for(const id of ["daily-ranges","hourly-ranges","recent-ranges","hist-years"]){ const b=document.querySelector("#"+id+" button.on"); if(b) b.click(); }
+  const live=document.getElementById("wx-live-out"); if(live && live.textContent.trim()){ const b=document.getElementById("wx-live-btn"); if(b) b.click(); }
+  if(typeof fetchHomeConditions==="function") fetchHomeConditions();
+  requestAnimationFrame(render);
+}
+document.getElementById("ckF").addEventListener("change",e=>{ tempF=e.target.checked; if(typeof savePrefs==="function")savePrefs(); refreshUnits(); });
 document.getElementById("meridianWrap").style.visibility="hidden";
 document.getElementById("count").textContent=GEO.stations.length.toLocaleString()+" stations · "+((GEO.cities||[]).length+GEO.stations.length).toLocaleString()+" searchable places · borders on";
 window.addEventListener("resize",()=>requestAnimationFrame(render));
@@ -1154,12 +1216,12 @@ function fetchRange(days){
     const avg=arr=>{const v=arr.filter(x=>x!=null); return v.length? (v.reduce((s,x)=>s+x,0)/v.length):null;};
     const sum=arr=>arr.filter(x=>x!=null).reduce((s,x)=>s+x,0);
     const aMax=avg(mx),aMin=avg(mn),tPr=sum(pr);
-    out.innerHTML='<div class="wx-fc"><span class="wx-fc-day"><b>Avg high</b> '+(aMax!=null?aMax.toFixed(1)+"°":"–")+'</span>'
-      +'<span class="wx-fc-day"><b>Avg low</b> '+(aMin!=null?aMin.toFixed(1)+"°":"–")+'</span>'
+    out.innerHTML='<div class="wx-fc"><span class="wx-fc-day"><b>Avg high</b> '+fT(aMax,1)+'</span>'
+      +'<span class="wx-fc-day"><b>Avg low</b> '+fT(aMin,1)+'</span>'
       +'<span class="wx-fc-day"><b>Total precip</b> '+Math.round(tPr)+' mm</span>'
       +'<span class="wx-fc-day"><b>Days</b> '+a.time.length+'</span></div>'
-      +'<div class="chart-lab">Daily high (°C)</div>'
-      +chart(mx,{labels:(a.time||[]).map(d=>d.slice(5).replace("-","/")),unit:'°'})
+      +'<div class="chart-lab">Daily high ('+tUnit()+')</div>'
+      +chart(tArr(mx),{labels:(a.time||[]).map(d=>d.slice(5).replace("-","/")),unit:'°'})
       +'<div class="chart-lab">Daily precipitation (mm)</div>'
       +bars(pr,{labels:(a.time||[]).map(d=>d.slice(5).replace("-","/")),unit:'mm'});
   }).catch(e=>{ out.innerHTML = (e&&e.rate)
@@ -1182,7 +1244,7 @@ function chart(vals, o){
   let g='';
   g+=hline(dHi,"grid")+rlab(dHi,Math.round(dHi)+unit);
   g+=hline(dLo,"grid")+rlab(dLo,Math.round(dLo)+unit);
-  if(sLo<0 && sHi>0){ g+=hline(0,"zero")+rlab(0,"0"+unit); }
+  const z0=(unit==="°"&&tempF)?32:0; if(sLo<z0 && sHi>z0){ g+=hline(z0,"zero")+rlab(z0,z0+unit); }   // freezing line (0 °C / 32 °F)
   g+=hline(mean,"mean")+rlab(mean,"avg "+mean.toFixed(1)+unit);   // the average line, on every chart
   let d="",pen=false; vals.forEach((x,i)=>{ if(x==null){pen=false;return;} const px=X(i).toFixed(1),py=Y(x).toFixed(1); d+=(pen?"L":"M")+px+" "+py; pen=true; });
   g+='<path d="'+d+'" class="ln"/>';
@@ -1255,12 +1317,12 @@ function fetchHistorical(years){
     const ylabels=rows.map(r=>String(r.y));
     let list='';
     for(const r of rows.slice().reverse()) list+='<div class="wx-fc-day"><b>'+r.y+'</b>  '
-      +(r.mx!=null?Math.round(r.mx)+"°":"–")+'/'+(r.mn!=null?Math.round(r.mn)+"°":"–")
+      +fT(r.mx)+'/'+fT(r.mn)
       +(r.pr!=null&&r.pr>0?'  <i>'+Math.round(r.pr)+'mm</i>':'')+'</div>';
     // graphs FIRST, then the year-by-year list
     out.innerHTML='<div class="wx-fc-day" style="margin-bottom:2px"><b>'+mmdd+'</b> · this date across '+rows.length+' years</div>'
-      +'<div class="chart-lab">High on '+mmdd+' (°C)</div>'
-      +chart(rows.map(r=>r.mx),{labels:ylabels,unit:'°'})
+      +'<div class="chart-lab">High on '+mmdd+' ('+tUnit()+')</div>'
+      +chart(tArr(rows.map(r=>r.mx)),{labels:ylabels,unit:'°'})
       +'<div class="chart-lab">Precipitation on '+mmdd+' (mm)</div>'
       +bars(rows.map(r=>r.pr),{labels:ylabels,unit:'mm'})
       +'<div class="chart-lab">Year by year</div>'+list;
@@ -1300,7 +1362,7 @@ function fetchHourly(hours){
     for(let k=0;k<idx.length;k+=step){ const i=idx[k];
       head+='<th>'+hlabel(H.time[i])+'</th>';
       rIc+=cell('ic',icon(wc[i]));
-      rTe+=cell('hi',H.temperature_2m[i]!=null?Math.round(H.temperature_2m[i])+'°':'–');
+      rTe+=cell('hi',fT(H.temperature_2m[i]));
       const pv=H.precipitation?H.precipitation[i]:null;
       rPr+=cell('pr',pv!=null&&pv>0?(Math.round(pv*10)/10)+'mm':'–');
     }
@@ -1308,9 +1370,9 @@ function fetchHourly(hours){
     const table='<div class="ctab-scroll"><table class="ctab"><thead>'+head+'</thead><tbody>'+rIc+rTe+rPr+'</tbody></table></div>';
     const hlabels=idx.map(i=>hlabel(H.time[i]));
     out.innerHTML='<div class="chart-lab">Conditions</div>'+table
-      +'<div class="chart-lab">Temperature (°C)</div>'+chart(temps,{labels:hlabels,unit:'°'})
+      +'<div class="chart-lab">Temperature ('+tUnit()+')</div>'+chart(tArr(temps),{labels:hlabels,unit:'°'})
       +'<div class="chart-lab">Precipitation (mm)</div>'+bars(precs,{labels:hlabels,unit:'mm'})
-      +'<div class="wx-fc"><span class="wx-fc-day"><b>Range</b> '+Math.round(Math.min.apply(null,tv))+'–'+Math.round(Math.max.apply(null,tv))+'°</span>'
+      +'<div class="wx-fc"><span class="wx-fc-day"><b>Range</b> '+fT(Math.min.apply(null,tv)).replace('°','')+'–'+fT(Math.max.apply(null,tv))+'</span>'
       +'<span class="wx-fc-day"><b>Total precip</b> '+(Math.round(tp.reduce((a,b)=>a+b,0)*10)/10)+' mm</span>'
       +'<span class="wx-fc-day"><b>Hours</b> '+idx.length+'</span></div>';
   }).catch(()=>{ out.innerHTML="<em>Hourly fetch failed.</em>"; });
@@ -1344,14 +1406,14 @@ function fetchDaily(days){
     for(let i=0;i<D.time.length;i++){
       head+='<th>'+dayLbl(D.time[i])+'</th>';
       rIc+=cell('ic',icon(wc[i]));
-      rHi+=cell('hi',mx[i]!=null?Math.round(mx[i])+'°':'–');
-      rLo+=cell('lo',mn[i]!=null?Math.round(mn[i])+'°':'–');
+      rHi+=cell('hi',fT(mx[i]));
+      rLo+=cell('lo',fT(mn[i]));
       rPr+=cell('pr',pr[i]!=null&&pr[i]>0?(Math.round(pr[i]*10)/10)+'mm':'–');
     }
     head+='</tr>'; rIc+='</tr>'; rHi+='</tr>'; rLo+='</tr>'; rPr+='</tr>';
     const table='<div class="ctab-scroll"><table class="ctab"><thead>'+head+'</thead><tbody>'+rIc+rHi+rLo+rPr+'</tbody></table></div>';
     out.innerHTML='<div class="chart-lab">Day by day</div>'+table
-      +'<div class="chart-lab">Daily high (°C)</div>'+chart(mx,{labels:dlabels,unit:'°'})
+      +'<div class="chart-lab">Daily high ('+tUnit()+')</div>'+chart(tArr(mx),{labels:dlabels,unit:'°'})
       +'<div class="chart-lab">Daily precipitation (mm)</div>'+bars(pr,{labels:dlabels,unit:'mm'});
   }).catch(()=>{ out.innerHTML="<em>Forecast fetch failed.</em>"; });
 }
@@ -1375,7 +1437,24 @@ function useGridCache(){
   }catch(e){} return false;
 }
 const GSTEP=12, GLAT0=-56, GLAT1=76;   // ~330 grid points — smaller so one pass fetches fully under Open-Meteo's ~600/min limit
-function setLayerMsg(m){ const el=document.getElementById("live-as"); if(el) el.textContent=m; }
+// Layer/location messages: the short "live · as of …" attribution stays in the layer row; everything
+// else (unavailable, denied, fetching…, key problems) is a toast in the middle of the screen that the
+// next tap anywhere dismisses (8 s fallback).
+let msgToastTimer=null;
+function showToast(m){
+  const t=document.getElementById("msg-toast"); if(!t) return;
+  clearTimeout(msgToastTimer);
+  if(!m){ t.hidden=true; return; }
+  t.textContent=m; t.hidden=false;
+  msgToastTimer=setTimeout(()=>{ t.hidden=true; },8000);
+}
+document.addEventListener("pointerdown",()=>{ const t=document.getElementById("msg-toast"); if(t && !t.hidden){ t.hidden=true; clearTimeout(msgToastTimer); } },{capture:true,passive:true});
+function setLayerMsg(m){
+  const el=document.getElementById("live-as");
+  const attrib = !m || /as of|©/.test(m);            // attribution-style text belongs in the layer row
+  if(el) el.textContent = attrib ? m : "";
+  if(!attrib) showToast(m); else showToast("");
+}
 function omForecastSrc(){ const S=(window.WXLIVE&&window.WXLIVE.sources)||[]; return S.filter(s=>/open-meteo\.com/.test(s.url)&&!/archive/.test(s.url))[0]; }
 function gridCoords(){ const p=[]; for(let la=GLAT0;la<=GLAT1;la+=GSTEP) for(let lo=-180;lo<180;lo+=GSTEP) p.push([la,lo]); return p; }
 function fetchGrid(cb){
@@ -1726,15 +1805,27 @@ function updateLegend(){
   const pal = (rasterLayer && cfg.owm) ? cfg.owm : cfg;     // OWM tiles → OWM's own palette, so the bar matches
   const lo=pal.lo, hi=pal.hi, stops=pal.stops;
   const grad=stops.map(s=>{ const pct=Math.max(0,Math.min(100,((s[0]-lo)/(hi-lo))*100)); return "rgb("+s[1]+","+s[2]+","+s[3]+") "+pct.toFixed(1)+"%"; }).join(",");
-  const ticks=[hi, Math.round((lo+hi)/2), lo].map(t=>"<span>"+t+"</span>").join("");
-  el.innerHTML='<div class="sb-title">'+cfg.label+'<br><span>'+cfg.unit+'</span></div>'
-    +'<div class="sb-wrap"><div class="sb-bar" style="background:linear-gradient(to top,'+grad+')"></div><div class="sb-ticks">'+ticks+'</div></div>';
+  // Temperature: a tick every 10 °C (or 20 °F), placed at its true height on the bar; other layers: hi / mid / lo.
+  let ticks="", unit=cfg.unit;
+  if(liveLayer==="temp"){
+    const step=tempF?20:10, dlo=tConv(lo), dhi=tConv(hi); unit=tUnit();
+    for(let t=Math.ceil(dlo/step)*step; t<=dhi+1e-9; t+=step){
+      const pct=((t-dlo)/(dhi-dlo))*100;
+      ticks+='<span class="sb-tick" style="bottom:'+pct.toFixed(1)+'%">'+t+'</span>';
+    }
+    ticks='<div class="sb-ticks sb-abs">'+ticks+'</div>';
+  } else ticks='<div class="sb-ticks">'+[hi, Math.round((lo+hi)/2), lo].map(t=>"<span>"+t+"</span>").join("")+'</div>';
+  el.innerHTML='<div class="sb-title">'+unit+'</div>'
+    +'<div class="sb-wrap"><div class="sb-bar" style="background:linear-gradient(to top,'+grad+')"></div>'+ticks+'</div>';
   el.hidden=false;
 }
+let owmToastDismissed=false;                       // a tap anywhere else hides the key prompt until the layer changes
 function updateOwmToast(){   // prompt for a free key when a tile layer is on and no key is set
   const t=document.getElementById("owm-toast"); if(!t) return;
-  t.hidden = !(OWM_LAYER[liveLayer] && !owmKey());
+  t.hidden = owmToastDismissed || !(OWM_LAYER[liveLayer] && !owmKey());
 }
+document.addEventListener("pointerdown",e=>{ const t=document.getElementById("owm-toast");
+  if(t && !t.hidden && !e.target.closest("#owm-toast")){ owmToastDismissed=true; t.hidden=true; } },{capture:true,passive:true});
 function buildFieldBitmap(layer){ const cfg=FIELD[layer]; if(!cfg) return null; const f=buildField(cfg.get); if(!f) return null; return bakeBitmap(f,cfg); }
 function drawColorField(){
   const cfg=FIELD[liveLayer]; if(!cfg) return;
@@ -1796,6 +1887,7 @@ function drawPressureLabels(){
 }
 
 function applyLiveLayer(val){
+  if(val!==liveLayer) owmToastDismissed=false;    // a new layer may prompt for the key again
   liveLayer=val; pendingLayer=null; stopAnim(); rasterLayer=null;
   if(typeof savePrefs==="function") savePrefs();
   document.querySelectorAll("#layerbar button").forEach(b=>b.classList.toggle("on",b.dataset.l===val));
@@ -1870,7 +1962,7 @@ try{ if(screen.orientation && screen.orientation.lock) screen.orientation.lock(p
 const PKEY="1w.prefs.v1";
 function savePrefs(){ try{ localStorage.setItem(PKEY, JSON.stringify({
   mode:mode, layer:liveLayer, stations:opt.stations, borders:opt.borders, grat:opt.grat,
-  isoFill:isoFill, hd:hdMode, lon0:lon0
+  isoFill:isoFill, hd:hdMode, lon0:lon0, f:tempF
 })); }catch(e){} }
 let pendingLayer=null;                              // a restored live layer, armed to load on first interaction (§1: no boot fetch)
 function applyPrefs(){
@@ -1880,6 +1972,7 @@ function applyPrefs(){
   setck("ckStations",p.stations,"stations"); setck("ckBorders",p.borders,"borders"); setck("ckGrat",p.grat,"grat");
   if(p.isoFill!=null){ isoFill=p.isoFill; const c=document.getElementById("ckIsoFill"); if(c)c.checked=p.isoFill; }
   if(p.hd!=null){ hdMode=p.hd; const c=document.getElementById("ckHD"); if(c)c.checked=p.hd; }
+  if(p.f!=null){ tempF=!!p.f; const c=document.getElementById("ckF"); if(c)c.checked=tempF; }
   if(typeof p.lon0==="number"){ lon0=p.lon0; const m=document.getElementById("meridian"); if(m){ m.value=Math.round(lon0); const mv=document.getElementById("mval"); if(mv)mv.textContent=Math.round(lon0)+"°"; } }
   if(p.mode==="ee") setMode("ee");
   if(p.layer==="windanim") p.layer="wind";          // migrate: wind + direction are one layer now
@@ -2196,6 +2289,9 @@ document.addEventListener("visibilitychange", ()=>{ if(document.hidden) savePref
   }
 
   /* ---------- rendering ---------- */
+  // temperature display: °C stored everywhere; the app's WXUNITS (Settings → Fahrenheit) converts at display
+  function tf(c) { if (window.WXUNITS) return window.WXUNITS.fmt(c); return c != null ? Math.round(c) + "°" : "–"; }
+  function tunit() { return window.WXUNITS ? window.WXUNITS.unit() : "°C"; }
   function esc(s) { return String(s).replace(/[<>&"]/g, function (c) { return { "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]; }); }
   function render(el, html) { if (el) el.innerHTML = html; }
   function stripHtml(days) {
@@ -2203,8 +2299,7 @@ document.addEventListener("visibilitychange", ()=>{ if(document.hidden) savePref
     var cells = days.map(function (d) {
       var name = dlabel(d.date);   // day of week + date, e.g. "Mon 28"
       return "<span class=\"wx-fc-day\"><b>" + esc(name) + "</b> " +
-             (d.tmax != null ? Math.round(d.tmax) + "°" : "–") + "/" +
-             (d.tmin != null ? Math.round(d.tmin) + "°" : "–") +
+             tf(d.tmax) + "/" + tf(d.tmin) +
              (d.pr != null && d.pr > 0 ? " <i>" + (Math.round(d.pr * 10) / 10) + "mm</i>" : "") + "</span>";
     });
     return "<div class=\"wx-fc\">" + cells.join("") + "</div>";
@@ -2230,7 +2325,7 @@ document.addEventListener("visibilitychange", ()=>{ if(document.hidden) savePref
     var now = new Date();
     var w = S("wind", "wind");
     var cond = (cur.code != null && wmoDesc(cur.code)) || (cur.short ? esc(cur.short) : null);   // cloudy / rain / snow / …
-    var line = (cond ? cond + " · " : "") + cur.tempC + "°C" +
+    var line = (cond ? cond + " · " : "") + tf(cur.tempC).replace("°", tunit()) +
                (cur.windKmh != null ? ", " + w + " " + cur.windKmh + " km/h" : (cur.wind ? ", " + w + " " + esc(cur.wind) : "")) +
                " · " + esc(S("as_of", "as of")) + " " + fmtStamp(now) + " (" + esc(srcName) + ")";
     cache[e.id] = { got: now, line: line };
@@ -2242,8 +2337,8 @@ document.addEventListener("visibilitychange", ()=>{ if(document.hidden) savePref
     var highs = days.map(function (d) { return d.tmax; });
     var prs   = days.map(function (d) { return d.pr; });
     var dlabels = days.map(function (d) { return dlabel(d.date); });
-    return "<div class=\"chart-lab\">" + esc(S("fc_high", "7-day high (°C)")) + "</div>" +
-             window.WXCHART.chart(highs, { labels: dlabels, unit: "°" }) +
+    return "<div class=\"chart-lab\">" + esc(S("fc_high", "7-day high ({u})").replace("{u}", tunit())) + "</div>" +
+             window.WXCHART.chart(window.WXUNITS ? window.WXUNITS.arr(highs) : highs, { labels: dlabels, unit: "°" }) +
            "<div class=\"chart-lab\">" + esc(S("fc_precip", "7-day precipitation (mm)")) + "</div>" +
              window.WXCHART.bars(prs, { labels: dlabels, unit: "mm" });
   }
