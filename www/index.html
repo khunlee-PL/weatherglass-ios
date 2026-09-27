@@ -247,6 +247,10 @@
   .ovcol .ovbtn{width:auto}                 /* every button sized to its own label, never a fixed width */
   /* bottom-right column (News, Settings) sits a little above the layer row */
   #ov-br{position:absolute;right:12px;bottom:62px;z-index:16;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+  #ov-br{position:absolute}  .ovmenu-up{top:auto;bottom:100%;left:auto;right:0;margin:0 0 8px;min-width:160px}
+  .ovmenu .lang-row{display:block;width:100%;text-align:left;font:600 13px/1.2 -apple-system,system-ui,sans-serif;color:var(--ink);
+    background:transparent;border:0;border-radius:8px;padding:9px 10px;cursor:pointer}
+  .ovmenu .lang-row:hover{background:rgba(127,160,200,.12)} .ovmenu .lang-row.on{background:var(--accent);color:var(--void)}
   .ovbtn{font:600 12px/1 -apple-system,system-ui,"Segoe UI",sans-serif;color:var(--ink);background:var(--panel);
     border:1px solid var(--line);border-radius:9px;padding:8px 11px;cursor:pointer;white-space:nowrap;
     box-shadow:0 3px 12px rgba(0,0,0,.30);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
@@ -486,6 +490,8 @@
   </div>
   <!-- bottom-right: News + Settings, just above the layer row -->
   <div id="ov-br" class="ui">
+    <div id="langMenu" class="ovmenu ovmenu-up" hidden></div>
+    <button class="ovbtn" id="btn-lang" title="Language">💬 EN</button>
     <button class="ovbtn" id="wx-news" title="Tour major weather events worldwide (GDACS)">🌐 News</button>
     <button class="ovbtn" id="btn-settings" title="Settings &amp; layers">⚙ Settings</button>
   </div>
@@ -589,6 +595,13 @@ function tArr(a){ return tempF ? (a||[]).map(v=>(v==null||isNaN(v))?null:v*9/5+3
 function tUnit(){ return tempF ? "°F" : "°C"; }
 function fT(c,dec){ const v=tConv(c); return v==null ? "–" : (dec?v.toFixed(dec):String(Math.round(v)))+"°"; }   // "23°" / "73°"
 window.WXUNITS={ conv:tConv, arr:tArr, unit:tUnit, fmt:fT, get f(){ return tempF; } };
+// ---------- UI language: en / th / fil (corpus/i18n/ui.json, baked at build time) ----------
+const UI_I18N = {"en":{"lang_name":"English","lang_btn":"💬 EN","home":"🏠 Home","home_t":"Centre on your home","homemenu_t":"Home positions & pins","loc":"📍 Location","loc_t":"Use my current location","search":"🔍 Search","search_t":"Search a place","search_ph":"Search a place…","gps_t":"Ask your browser for your location","news":"🌐 News","news_t":"Tour major weather events worldwide (GDACS)","settings":"⚙ Settings","settings_t":"Settings & layers","lang_t":"Language","language":"Language","globe":"Globe","map":"Map","zoom_in":"Zoom in","zoom_out":"Zoom out","pin_current":"＋ Pin current view as home","home_positions":"Home positions","none_yet":"None yet. Search a place or use your location.","goto":"Go to","check_warn":"Check warnings","remove":"Remove","no_match":"No place matches “{q}”. Try your GPS.","l_off":"Off","l_temp":"Temp","l_precip":"Precip","l_cloud":"Cloud","l_wind":"Wind","l_pressure":"Pressure","card_empty":"Tap a station to centre it and read its climate normals.","tab_daily":"Daily","tab_hourly":"Hourly","tab_recent":"Recent","tab_hist":"Historical","tab_normals":"Normals","update":"↻ Update","natl":"⚠ National warnings","d7":"7 Days","d14":"14 Days","h12":"12 hrs","h24":"24 hrs","h48":"48 hrs","r7":"7 days","r30":"1 month","r90":"3 months","r180":"6 months","r365":"1 year","y5":"5 yr","y10":"10 yr","y20":"20 yr","y30":"30 yr","foot_hourly":"Hourly forecast (Open-Meteo) — fetched on request.","foot_recent":"Recent conditions (Open-Meteo Archive / ERA5) — fetched on request.","foot_hist":"This date across the years (Open-Meteo Archive / ERA5) — fetched on request.","normals_tag":"◆ Climate normals","normals_foot":"Normals 1991–2020 · WMO / NCEI · baked, read offline","warmest":"Warmest","coldest":"Coldest","annual_precip":"Annual precip","elevation":"Elevation","no_home":"No home set","pin_home_hint":"Pin a home (🔍 search or 📍) to see live conditions here on open.","pinned_view":"Pinned view","my_location":"My location","pinned_loc":"Pinned location (no baked climate station here).","live_foot":"Live weather & official warnings on request","weather_event":"Weather event","event":"Event","news_bar":"{n} live weather events · GDACS, as of {t} — tap a dot","news_foot":"Data: GDACS — EC (JRC) / UN OCHA, CC-BY 4.0 · as of {t}","conditions":"Conditions","day_by_day":"Day by day","daily_high":"Daily high ({u})","daily_precip":"Daily precipitation (mm)","temperature":"Temperature ({u})","precipitation":"Precipitation (mm)","high_on":"High on {d} ({u})","precip_on":"Precipitation on {d} (mm)","year_by_year":"Year by year","this_date":"this date across {n} years","avg_high":"Avg high","avg_low":"Avg low","total_precip":"Total precip","days":"Days","hours":"Hours","range":"Range","row_high":"High","row_low":"Low","row_precip":"Precip","row_temp":"Temp","fetching_days":"Fetching {n} days…","fetching_hours":"Fetching next {n} hours…","fetching_fc":"Fetching {n}-day forecast…","fetching_date":"Fetching this date ({d}) across {n} years…","err_archive":"Archive fetch failed.","err_fc":"Forecast fetch failed.","err_fc_none":"Forecast returned no data.","err_hist_none":"Historical fetch returned no data.","err_hourly":"Hourly fetch failed.","err_hourly_none":"Hourly fetch returned no data.","err_no_hist":"No historical source configured.","no_records":"No records for {d} in that span.","select_first":"Select a place first.","warn_unavail":"Warnings unavailable.","rate_limited":"Open-Meteo archive is rate-limited right now — try again in a few minutes.","locating":"Locating…","loc_denied":"Location permission denied.","loc_fail":"Couldn’t get your location.","no_geo":"This browser has no geolocation.","tap_load":"tap the map to load this layer","grid_fetch":"fetching live grid…","grid_unavail":"live grid unavailable — baked map stands","unverified":"live source unverified","live_asof":"live · as of {t}","add_key":"add your free OpenWeatherMap key in Settings","raster_fetch":"fetching raster…","key_wait":"key not accepted yet — new OWM keys take ~10 min to 2 h to activate","owm_rate":"OpenWeatherMap rate limit — wait a minute","owm_ret":"OpenWeatherMap returned {s} — check the key","tiles_fail":"tiles didn't load (offline, or blocked in this preview) — baked map stands","field_unavail":"{l} field unavailable (grid rate-limited — wait a minute)","field_asof":"{l} · Open-Meteo · as of {t}","coarse_hint":" — coarse overview; add an OWM key in Settings for detail","owm_toast":"🔑 Get a free OWM key for high-resolution images ↗","key_ok":"✓ key active","key_pending":"⏳ not active yet — new keys take ~10 min–2 h (or check for typos)","checking":"checking…","settings_h":"Settings","owm_key":"OWM key","owm_ph":"OpenWeatherMap key (for HD tiles)","get_key":"Get a free key ↗","hd":"HD tiles for Temp/Precip/Cloud/Wind (needs OWM key)","fahrenheit":"Fahrenheit (°F)","stations":"Stations","borders":"Borders","graticule":"Graticule","isofill":"Pressure colour fill","owm_help_title":"Free OpenWeatherMap key — about 2 minutes","owm_help_1":"<a href=\"https://home.openweathermap.org/users/sign_up\" target=\"_blank\" rel=\"noopener\">Create a free account ↗<\/a> — just an email &amp; password.","owm_help_2":"Open your <a href=\"https://home.openweathermap.org/api_keys\" target=\"_blank\" rel=\"noopener\">API keys page ↗<\/a>; a default key is already listed — copy it.","owm_help_3":"Paste it in the box above. New keys take ~10 min to 2 h to activate — a ✓ appears here once it works.","owm_note":"Your key stays on this device only. Weatherglass is free; OpenWeatherMap's free tier is plenty for personal use.","center":"Center","about_btn":"ⓘ About & credits","contact":"Contact us:","done":"Done","about_tag":"Where the sky takes shape.","about_lead":"An offline climate atlas that gains a live pulse on request. The whole world's climate normals are baked in and read with the wire pulled; current conditions, forecasts, warnings and raster layers are fetched only when you ask for them.","cred_h":"Data & credits","privacy_h":"Privacy","about_privacy":"Your home pins and OpenWeatherMap key live in this browser only and are never sent anywhere. The app boots with no network at all; it reaches out only for the live data you request, sending just the coordinates needed.","about_foot":"Weatherglass — free and offline-first. Every reading shows its time; offline, the baked normals stand.","no_alerts":"No active NWS warnings for this point.","wind":"wind","as_of":"as of","fc_high":"7-day high ({u})","fc_precip":"7-day precipitation (mm)","fetch_failed":"Live fetch failed — baked climatology above stands.","last_reading":"Last reading, as of","fetching":"Fetching…","no_source":"No live source configured.","no_natl_alerts":"No warnings currently in force.","until":"until","warn_src_note":"All warnings belong to the issuing agency, shown verbatim.","news_empty":"No major weather events reported by GDACS right now.","news_cors":"Global weather news works in the installed app only — the GDACS feed can't be read from a browser (no CORS).","awaits":"Live source ({name}) awaits the licence-verification pass — showing baked normals only.","dow_0":"Sun","dow_1":"Mon","dow_2":"Tue","dow_3":"Wed","dow_4":"Thu","dow_5":"Fri","dow_6":"Sat","mon_0":"Jan","mon_1":"Feb","mon_2":"Mar","mon_3":"Apr","mon_4":"May","mon_5":"Jun","mon_6":"Jul","mon_7":"Aug","mon_8":"Sep","mon_9":"Oct","mon_10":"Nov","mon_11":"Dec","wx_0":"Clear sky","wx_1":"Mainly clear","wx_2":"Partly cloudy","wx_3":"Overcast","wx_45":"Fog","wx_48":"Rime fog","wx_51":"Light drizzle","wx_53":"Drizzle","wx_55":"Heavy drizzle","wx_56":"Freezing drizzle","wx_57":"Freezing drizzle","wx_61":"Light rain","wx_63":"Rain","wx_65":"Heavy rain","wx_66":"Freezing rain","wx_67":"Heavy freezing rain","wx_71":"Light snow","wx_73":"Snow","wx_75":"Heavy snow","wx_77":"Snow grains","wx_80":"Rain showers","wx_81":"Rain showers","wx_82":"Violent rain showers","wx_85":"Snow showers","wx_86":"Heavy snow showers","wx_95":"Thunderstorm","wx_96":"Thunderstorm, hail","wx_99":"Thunderstorm, heavy hail"},"th":{"lang_name":"ไทย","lang_btn":"💬 ไทย","home":"🏠 บ้าน","home_t":"ไปที่ตำแหน่งบ้านของคุณ","homemenu_t":"ตำแหน่งบ้านและหมุด","loc":"📍 ตำแหน่งของฉัน","loc_t":"ใช้ตำแหน่งปัจจุบันของฉัน","search":"🔍 ค้นหา","search_t":"ค้นหาสถานที่","search_ph":"ค้นหาสถานที่…","gps_t":"ขอตำแหน่งจากเบราว์เซอร์","news":"🌐 ข่าว","news_t":"ชมเหตุการณ์สภาพอากาศสำคัญทั่วโลก (GDACS)","settings":"⚙ ตั้งค่า","settings_t":"การตั้งค่าและชั้นข้อมูล","lang_t":"ภาษา","language":"ภาษา","globe":"ลูกโลก","map":"แผนที่","zoom_in":"ขยาย","zoom_out":"ย่อ","pin_current":"＋ ปักมุมมองนี้เป็นบ้าน","home_positions":"ตำแหน่งบ้าน","none_yet":"ยังไม่มี ค้นหาสถานที่หรือใช้ตำแหน่งของคุณ","goto":"ไปที่","check_warn":"ดูคำเตือน","remove":"ลบ","no_match":"ไม่พบสถานที่ “{q}” ลองใช้ GPS","l_off":"ปิด","l_temp":"อุณหภูมิ","l_precip":"ฝน","l_cloud":"เมฆ","l_wind":"ลม","l_pressure":"ความกดอากาศ","card_empty":"แตะสถานีเพื่อจัดกึ่งกลางและอ่านค่าปกติของภูมิอากาศ","tab_daily":"รายวัน","tab_hourly":"รายชั่วโมง","tab_recent":"ล่าสุด","tab_hist":"ย้อนหลัง","tab_normals":"ค่าปกติ","update":"↻ อัปเดต","natl":"⚠ คำเตือนระดับชาติ","d7":"7 วัน","d14":"14 วัน","h12":"12 ชม.","h24":"24 ชม.","h48":"48 ชม.","r7":"7 วัน","r30":"1 เดือน","r90":"3 เดือน","r180":"6 เดือน","r365":"1 ปี","y5":"5 ปี","y10":"10 ปี","y20":"20 ปี","y30":"30 ปี","foot_hourly":"พยากรณ์รายชั่วโมง (Open-Meteo) — ดึงข้อมูลเมื่อร้องขอ","foot_recent":"สภาพอากาศล่าสุด (Open-Meteo Archive / ERA5) — ดึงข้อมูลเมื่อร้องขอ","foot_hist":"วันนี้ในปีก่อน ๆ (Open-Meteo Archive / ERA5) — ดึงข้อมูลเมื่อร้องขอ","normals_tag":"◆ ค่าปกติของภูมิอากาศ","normals_foot":"ค่าปกติ 1991–2020 · WMO / NCEI · ฝังในแอป อ่านได้แบบออฟไลน์","warmest":"ร้อนที่สุด","coldest":"หนาวที่สุด","annual_precip":"ฝนรายปี","elevation":"ความสูง","no_home":"ยังไม่ได้ตั้งบ้าน","pin_home_hint":"ปักบ้าน (🔍 ค้นหา หรือ 📍) เพื่อดูสภาพอากาศสดที่นี่เมื่อเปิดแอป","pinned_view":"มุมมองที่ปักไว้","my_location":"ตำแหน่งของฉัน","pinned_loc":"ตำแหน่งที่ปักไว้ (ไม่มีสถานีภูมิอากาศในตัวที่นี่)","live_foot":"สภาพอากาศสดและคำเตือนทางการเมื่อร้องขอ","weather_event":"เหตุการณ์สภาพอากาศ","event":"เหตุการณ์","news_bar":"เหตุการณ์สภาพอากาศสด {n} รายการ · GDACS ณ {t} — แตะจุดเพื่อดู","news_foot":"ข้อมูล: GDACS — EC (JRC) / UN OCHA, CC-BY 4.0 · ณ {t}","conditions":"สภาพอากาศ","day_by_day":"วันต่อวัน","daily_high":"อุณหภูมิสูงสุดรายวัน ({u})","daily_precip":"ปริมาณฝนรายวัน (มม.)","temperature":"อุณหภูมิ ({u})","precipitation":"ปริมาณฝน (มม.)","high_on":"สูงสุดวันที่ {d} ({u})","precip_on":"ปริมาณฝนวันที่ {d} (มม.)","year_by_year":"ปีต่อปี","this_date":"วันนี้ย้อนหลัง {n} ปี","avg_high":"สูงสุดเฉลี่ย","avg_low":"ต่ำสุดเฉลี่ย","total_precip":"ฝนรวม","days":"วัน","hours":"ชั่วโมง","range":"ช่วง","row_high":"สูงสุด","row_low":"ต่ำสุด","row_precip":"ฝน","row_temp":"อุณหภูมิ","fetching_days":"กำลังดึงข้อมูล {n} วัน…","fetching_hours":"กำลังดึงข้อมูล {n} ชั่วโมงถัดไป…","fetching_fc":"กำลังดึงพยากรณ์ {n} วัน…","fetching_date":"กำลังดึงข้อมูลวันที่ {d} ย้อนหลัง {n} ปี…","err_archive":"ดึงข้อมูลย้อนหลังไม่สำเร็จ","err_fc":"ดึงพยากรณ์ไม่สำเร็จ","err_fc_none":"พยากรณ์ไม่มีข้อมูล","err_hist_none":"ข้อมูลย้อนหลังไม่มีข้อมูล","err_hourly":"ดึงข้อมูลรายชั่วโมงไม่สำเร็จ","err_hourly_none":"ข้อมูลรายชั่วโมงไม่มีข้อมูล","err_no_hist":"ยังไม่ได้ตั้งค่าแหล่งข้อมูลย้อนหลัง","no_records":"ไม่มีบันทึกของวันที่ {d} ในช่วงนั้น","select_first":"เลือกสถานที่ก่อน","warn_unavail":"ไม่สามารถดึงคำเตือนได้","rate_limited":"คลังข้อมูล Open-Meteo ถูกจำกัดการใช้งานชั่วคราว — ลองใหม่ในอีกสักครู่","locating":"กำลังหาตำแหน่ง…","loc_denied":"ไม่ได้รับอนุญาตให้ใช้ตำแหน่ง","loc_fail":"ไม่สามารถหาตำแหน่งของคุณได้","no_geo":"เบราว์เซอร์นี้ไม่รองรับตำแหน่ง","tap_load":"แตะแผนที่เพื่อโหลดชั้นข้อมูลนี้","grid_fetch":"กำลังดึงข้อมูลสด…","grid_unavail":"ข้อมูลสดไม่พร้อมใช้งาน — แสดงแผนที่ในตัวแทน","unverified":"แหล่งข้อมูลสดยังไม่ได้รับการยืนยัน","live_asof":"สด · ณ {t}","add_key":"เพิ่มคีย์ OpenWeatherMap ฟรีของคุณในตั้งค่า","raster_fetch":"กำลังดึงภาพแรสเตอร์…","key_wait":"คีย์ยังไม่ถูกยอมรับ — คีย์ OWM ใหม่ใช้เวลาประมาณ 10 นาทีถึง 2 ชั่วโมงจึงจะใช้งานได้","owm_rate":"OpenWeatherMap จำกัดการใช้งาน — รอสักครู่","owm_ret":"OpenWeatherMap ตอบกลับ {s} — ตรวจสอบคีย์","tiles_fail":"โหลดภาพไม่สำเร็จ (ออฟไลน์ หรือถูกบล็อกในตัวอย่างนี้) — แสดงแผนที่ในตัวแทน","field_unavail":"ชั้นข้อมูล{l}ไม่พร้อมใช้งาน (ถูกจำกัดการใช้งาน — รอสักครู่)","field_asof":"{l} · Open-Meteo · ณ {t}","coarse_hint":" — ภาพรวมแบบหยาบ เพิ่มคีย์ OWM ในตั้งค่าเพื่อความละเอียด","owm_toast":"🔑 รับคีย์ OWM ฟรีเพื่อภาพความละเอียดสูง ↗","key_ok":"✓ คีย์ใช้งานได้","key_pending":"⏳ ยังไม่ใช้งาน — คีย์ใหม่ใช้เวลา ~10 นาที–2 ชม. (หรือตรวจสอบการพิมพ์)","checking":"กำลังตรวจสอบ…","settings_h":"ตั้งค่า","owm_key":"คีย์ OWM","owm_ph":"คีย์ OpenWeatherMap (สำหรับภาพ HD)","get_key":"รับคีย์ฟรี ↗","hd":"ภาพ HD สำหรับอุณหภูมิ/ฝน/เมฆ/ลม (ต้องมีคีย์ OWM)","fahrenheit":"ฟาเรนไฮต์ (°F)","stations":"สถานี","borders":"เส้นเขตแดน","graticule":"เส้นกริด","isofill":"สีความกดอากาศ","owm_help_title":"คีย์ OpenWeatherMap ฟรี — ใช้เวลาประมาณ 2 นาที","owm_help_1":"<a href=\"https://home.openweathermap.org/users/sign_up\" target=\"_blank\" rel=\"noopener\">สร้างบัญชีฟรี ↗<\/a> — ใช้เพียงอีเมลและรหัสผ่าน","owm_help_2":"เปิด<a href=\"https://home.openweathermap.org/api_keys\" target=\"_blank\" rel=\"noopener\">หน้า API keys ↗<\/a> จะมีคีย์เริ่มต้นอยู่แล้ว — คัดลอกมา","owm_help_3":"วางในช่องด้านบน คีย์ใหม่ใช้เวลา ~10 นาทีถึง 2 ชั่วโมงจึงจะใช้งานได้ — เครื่องหมาย ✓ จะปรากฏเมื่อใช้ได้","owm_note":"คีย์ของคุณอยู่ในอุปกรณ์นี้เท่านั้น Weatherglass ฟรี และแพ็กเกจฟรีของ OpenWeatherMap เพียงพอสำหรับการใช้งานส่วนตัว","center":"กึ่งกลาง","about_btn":"ⓘ เกี่ยวกับและเครดิต","contact":"ติดต่อเรา:","done":"เสร็จสิ้น","about_tag":"ที่ซึ่งท้องฟ้าก่อรูปร่าง","about_lead":"แผนที่ภูมิอากาศออฟไลน์ที่มีชีพจรสดเมื่อร้องขอ ค่าปกติของภูมิอากาศทั่วโลกฝังอยู่ในแอปและอ่านได้โดยไม่ต้องต่อเน็ต ส่วนสภาพอากาศปัจจุบัน พยากรณ์ คำเตือน และภาพชั้นข้อมูลจะดึงเมื่อคุณขอเท่านั้น","cred_h":"ข้อมูลและเครดิต","privacy_h":"ความเป็นส่วนตัว","about_privacy":"หมุดบ้านและคีย์ OpenWeatherMap ของคุณอยู่ในเบราว์เซอร์นี้เท่านั้นและไม่ถูกส่งไปที่ใด แอปเปิดได้โดยไม่ใช้เครือข่ายเลย และจะติดต่อภายนอกเฉพาะข้อมูลสดที่คุณขอ โดยส่งเพียงพิกัดที่จำเป็น","about_foot":"Weatherglass — ฟรีและออฟไลน์เป็นหลัก ทุกค่าที่อ่านแสดงเวลาของมัน เมื่อออฟไลน์ ค่าปกติในตัวยังคงอยู่","no_alerts":"ไม่มีคำเตือน NWS ที่มีผลสำหรับจุดนี้","wind":"ลม","as_of":"ณ","fc_high":"สูงสุด 7 วัน ({u})","fc_precip":"ปริมาณฝน 7 วัน (มม.)","fetch_failed":"ดึงข้อมูลสดไม่สำเร็จ — ใช้ค่าภูมิอากาศในตัวด้านบน","last_reading":"ค่าล่าสุด ณ","fetching":"กำลังดึงข้อมูล…","no_source":"ยังไม่ได้ตั้งค่าแหล่งข้อมูลสด","no_natl_alerts":"ไม่มีคำเตือนที่มีผลในขณะนี้","until":"จนถึง","warn_src_note":"คำเตือนทั้งหมดเป็นของหน่วยงานผู้ออก แสดงตามต้นฉบับ","news_empty":"ขณะนี้ GDACS ไม่รายงานเหตุการณ์สภาพอากาศสำคัญ","news_cors":"ข่าวสภาพอากาศโลกใช้ได้เฉพาะในแอปที่ติดตั้ง — ฟีด GDACS อ่านจากเบราว์เซอร์ไม่ได้ (ไม่มี CORS)","awaits":"แหล่งข้อมูลสด ({name}) รอการตรวจสอบสัญญาอนุญาต — แสดงเฉพาะค่าปกติในตัว","dow_0":"อา.","dow_1":"จ.","dow_2":"อ.","dow_3":"พ.","dow_4":"พฤ.","dow_5":"ศ.","dow_6":"ส.","mon_0":"ม.ค.","mon_1":"ก.พ.","mon_2":"มี.ค.","mon_3":"เม.ย.","mon_4":"พ.ค.","mon_5":"มิ.ย.","mon_6":"ก.ค.","mon_7":"ส.ค.","mon_8":"ก.ย.","mon_9":"ต.ค.","mon_10":"พ.ย.","mon_11":"ธ.ค.","wx_0":"ท้องฟ้าแจ่มใส","wx_1":"ส่วนใหญ่แจ่มใส","wx_2":"มีเมฆบางส่วน","wx_3":"เมฆมาก","wx_45":"หมอก","wx_48":"หมอกแข็ง","wx_51":"ฝนละอองเบา","wx_53":"ฝนละออง","wx_55":"ฝนละอองหนัก","wx_56":"ฝนละอองเยือกแข็ง","wx_57":"ฝนละอองเยือกแข็ง","wx_61":"ฝนเล็กน้อย","wx_63":"ฝน","wx_65":"ฝนหนัก","wx_66":"ฝนเยือกแข็ง","wx_67":"ฝนเยือกแข็งหนัก","wx_71":"หิมะเล็กน้อย","wx_73":"หิมะ","wx_75":"หิมะหนัก","wx_77":"เม็ดหิมะ","wx_80":"ฝนซู่","wx_81":"ฝนซู่","wx_82":"ฝนซู่รุนแรง","wx_85":"หิมะซู่","wx_86":"หิมะซู่หนัก","wx_95":"พายุฟ้าคะนอง","wx_96":"พายุฟ้าคะนองมีลูกเห็บ","wx_99":"พายุฟ้าคะนองลูกเห็บหนัก"},"fil":{"lang_name":"Filipino","lang_btn":"💬 Filipino","home":"🏠 Tahanan","home_t":"Ituon sa iyong tahanan","homemenu_t":"Mga tahanan at pin","loc":"📍 Lokasyon","loc_t":"Gamitin ang kasalukuyang lokasyon ko","search":"🔍 Hanapin","search_t":"Maghanap ng lugar","search_ph":"Maghanap ng lugar…","gps_t":"Hingin sa browser ang iyong lokasyon","news":"🌐 Balita","news_t":"Libutin ang malalaking pangyayaring panahon sa mundo (GDACS)","settings":"⚙ Mga setting","settings_t":"Mga setting at layer","lang_t":"Wika","language":"Wika","globe":"Globo","map":"Mapa","zoom_in":"Palakihin","zoom_out":"Paliitin","pin_current":"＋ I-pin ang tanawing ito bilang tahanan","home_positions":"Mga tahanan","none_yet":"Wala pa. Maghanap ng lugar o gamitin ang iyong lokasyon.","goto":"Pumunta","check_warn":"Tingnan ang mga babala","remove":"Alisin","no_match":"Walang lugar na tumutugma sa “{q}”. Subukan ang GPS.","l_off":"Patay","l_temp":"Temp","l_precip":"Ulan","l_cloud":"Ulap","l_wind":"Hangin","l_pressure":"Presyon","card_empty":"Pindutin ang isang istasyon upang ituon ito at basahin ang climate normals nito.","tab_daily":"Araw-araw","tab_hourly":"Oras-oras","tab_recent":"Kamakailan","tab_hist":"Kasaysayan","tab_normals":"Normals","update":"↻ I-update","natl":"⚠ Mga babalang pambansa","d7":"7 Araw","d14":"14 Araw","h12":"12 oras","h24":"24 oras","h48":"48 oras","r7":"7 araw","r30":"1 buwan","r90":"3 buwan","r180":"6 buwan","r365":"1 taon","y5":"5 taon","y10":"10 taon","y20":"20 taon","y30":"30 taon","foot_hourly":"Oras-oras na forecast (Open-Meteo) — kinukuha kapag hiniling.","foot_recent":"Kamakailang lagay ng panahon (Open-Meteo Archive / ERA5) — kinukuha kapag hiniling.","foot_hist":"Ang petsang ito sa mga nakaraang taon (Open-Meteo Archive / ERA5) — kinukuha kapag hiniling.","normals_tag":"◆ Climate normals","normals_foot":"Normals 1991–2020 · WMO / NCEI · naka-embed, mababasa nang offline","warmest":"Pinakamainit","coldest":"Pinakamalamig","annual_precip":"Taunang ulan","elevation":"Taas","no_home":"Walang nakatakdang tahanan","pin_home_hint":"Mag-pin ng tahanan (🔍 hanapin o 📍) upang makita rito ang live na lagay ng panahon sa pagbukas.","pinned_view":"Naka-pin na tanawin","my_location":"Aking lokasyon","pinned_loc":"Naka-pin na lokasyon (walang naka-embed na istasyon ng klima rito).","live_foot":"Live na panahon at opisyal na babala kapag hiniling","weather_event":"Pangyayaring panahon","event":"Pangyayari","news_bar":"{n} live na pangyayaring panahon · GDACS, noong {t} — pindutin ang tuldok","news_foot":"Datos: GDACS — EC (JRC) / UN OCHA, CC-BY 4.0 · noong {t}","conditions":"Lagay ng panahon","day_by_day":"Araw-araw","daily_high":"Pinakamataas bawat araw ({u})","daily_precip":"Ulan bawat araw (mm)","temperature":"Temperatura ({u})","precipitation":"Ulan (mm)","high_on":"Pinakamataas noong {d} ({u})","precip_on":"Ulan noong {d} (mm)","year_by_year":"Taon-taon","this_date":"ang petsang ito sa loob ng {n} taon","avg_high":"Avg mataas","avg_low":"Avg mababa","total_precip":"Kabuuang ulan","days":"Araw","hours":"Oras","range":"Saklaw","row_high":"Mataas","row_low":"Mababa","row_precip":"Ulan","row_temp":"Temp","fetching_days":"Kinukuha ang {n} araw…","fetching_hours":"Kinukuha ang susunod na {n} oras…","fetching_fc":"Kinukuha ang {n}-araw na forecast…","fetching_date":"Kinukuha ang petsang ito ({d}) sa loob ng {n} taon…","err_archive":"Nabigo ang pagkuha ng archive.","err_fc":"Nabigo ang pagkuha ng forecast.","err_fc_none":"Walang datos ang forecast.","err_hist_none":"Walang datos ang kasaysayan.","err_hourly":"Nabigo ang oras-oras na pagkuha.","err_hourly_none":"Walang datos ang oras-oras.","err_no_hist":"Walang nakatakdang pinagmulan ng kasaysayan.","no_records":"Walang tala para sa {d} sa saklaw na iyon.","select_first":"Pumili muna ng lugar.","warn_unavail":"Hindi makuha ang mga babala.","rate_limited":"Limitado ngayon ang Open-Meteo archive — subukan muli sa ilang minuto.","locating":"Hinahanap ang lokasyon…","loc_denied":"Hindi pinayagan ang lokasyon.","loc_fail":"Hindi makuha ang iyong lokasyon.","no_geo":"Walang geolocation ang browser na ito.","tap_load":"pindutin ang mapa upang i-load ang layer na ito","grid_fetch":"kinukuha ang live grid…","grid_unavail":"hindi makuha ang live grid — naka-embed na mapa ang ipinapakita","unverified":"hindi pa beripikado ang live source","live_asof":"live · noong {t}","add_key":"idagdag ang iyong libreng OpenWeatherMap key sa Mga setting","raster_fetch":"kinukuha ang raster…","key_wait":"hindi pa tinatanggap ang key — ang bagong OWM key ay nangangailangan ng ~10 min hanggang 2 oras","owm_rate":"Limitado ang OpenWeatherMap — maghintay ng isang minuto","owm_ret":"Nagbalik ang OpenWeatherMap ng {s} — suriin ang key","tiles_fail":"hindi na-load ang mga tile (offline, o naka-block sa preview na ito) — naka-embed na mapa ang ipinapakita","field_unavail":"hindi makuha ang {l} (limitado ang grid — maghintay ng isang minuto)","field_asof":"{l} · Open-Meteo · noong {t}","coarse_hint":" — magaspang na tanaw; magdagdag ng OWM key sa Mga setting para sa detalye","owm_toast":"🔑 Kumuha ng libreng OWM key para sa high-resolution na larawan ↗","key_ok":"✓ aktibo ang key","key_pending":"⏳ hindi pa aktibo — ~10 min–2 oras ang bagong key (o suriin ang typo)","checking":"sinusuri…","settings_h":"Mga setting","owm_key":"OWM key","owm_ph":"OpenWeatherMap key (para sa HD tiles)","get_key":"Kumuha ng libreng key ↗","hd":"HD tiles para sa Temp/Ulan/Ulap/Hangin (kailangan ng OWM key)","fahrenheit":"Fahrenheit (°F)","stations":"Mga istasyon","borders":"Mga hangganan","graticule":"Graticule","isofill":"Kulay ng presyon","owm_help_title":"Libreng OpenWeatherMap key — mga 2 minuto","owm_help_1":"<a href=\"https://home.openweathermap.org/users/sign_up\" target=\"_blank\" rel=\"noopener\">Gumawa ng libreng account ↗<\/a> — email at password lang.","owm_help_2":"Buksan ang iyong <a href=\"https://home.openweathermap.org/api_keys\" target=\"_blank\" rel=\"noopener\">pahina ng API keys ↗<\/a>; may default na key na nakalista — kopyahin ito.","owm_help_3":"I-paste sa kahon sa itaas. Ang bagong key ay nangangailangan ng ~10 min hanggang 2 oras — lilitaw ang ✓ kapag gumagana na.","owm_note":"Nananatili sa device na ito lamang ang iyong key. Libre ang Weatherglass; sapat ang libreng tier ng OpenWeatherMap para sa personal na gamit.","center":"Gitna","about_btn":"ⓘ Tungkol at mga kredito","contact":"Makipag-ugnayan:","done":"Tapos","about_tag":"Kung saan nahuhubog ang langit.","about_lead":"Isang offline na atlas ng klima na nagkakaroon ng live na pulso kapag hiniling. Naka-embed ang climate normals ng buong mundo at mababasa nang walang koneksyon; ang kasalukuyang lagay, forecast, babala at raster layer ay kinukuha lamang kapag hiniling mo.","cred_h":"Datos at mga kredito","privacy_h":"Privacy","about_privacy":"Ang iyong mga pin ng tahanan at OpenWeatherMap key ay nasa browser na ito lamang at hindi kailanman ipinapadala saanman. Nagbubukas ang app nang walang network; kumokonekta lamang ito para sa live na datos na hinihiling mo, at ipinapadala lamang ang kinakailangang coordinates.","about_foot":"Weatherglass — libre at offline-first. Bawat pagbasa ay may oras; kapag offline, nananatili ang naka-embed na normals.","no_alerts":"Walang aktibong babala ng NWS para sa puntong ito.","wind":"hangin","as_of":"noong","fc_high":"7-araw na pinakamataas ({u})","fc_precip":"7-araw na ulan (mm)","fetch_failed":"Nabigo ang live na pagkuha — nananatili ang naka-embed na klimatolohiya sa itaas.","last_reading":"Huling pagbasa, noong","fetching":"Kinukuha…","no_source":"Walang nakatakdang live source.","no_natl_alerts":"Walang babalang umiiral ngayon.","until":"hanggang","warn_src_note":"Lahat ng babala ay pag-aari ng ahensiyang naglabas, ipinapakita nang buo.","news_empty":"Walang malaking pangyayaring panahon na iniuulat ng GDACS ngayon.","news_cors":"Gumagana lamang ang balita ng panahon sa mundo sa naka-install na app — hindi mababasa ang GDACS feed mula sa browser (walang CORS).","awaits":"Naghihintay ang live source ({name}) ng pagberipika ng lisensya — naka-embed na normals lamang ang ipinapakita.","dow_0":"Lin","dow_1":"Lun","dow_2":"Mar","dow_3":"Miy","dow_4":"Huw","dow_5":"Biy","dow_6":"Sab","mon_0":"Ene","mon_1":"Peb","mon_2":"Mar","mon_3":"Abr","mon_4":"May","mon_5":"Hun","mon_6":"Hul","mon_7":"Ago","mon_8":"Set","mon_9":"Okt","mon_10":"Nob","mon_11":"Dis","wx_0":"Maaliwalas","wx_1":"Halos maaliwalas","wx_2":"Bahagyang maulap","wx_3":"Makulimlim","wx_45":"Hamog","wx_48":"Nagyeyelong hamog","wx_51":"Mahinang ambon","wx_53":"Ambon","wx_55":"Malakas na ambon","wx_56":"Nagyeyelong ambon","wx_57":"Nagyeyelong ambon","wx_61":"Mahinang ulan","wx_63":"Ulan","wx_65":"Malakas na ulan","wx_66":"Nagyeyelong ulan","wx_67":"Malakas na nagyeyelong ulan","wx_71":"Mahinang niyebe","wx_73":"Niyebe","wx_75":"Malakas na niyebe","wx_77":"Butil ng niyebe","wx_80":"Mga pag-ulan","wx_81":"Mga pag-ulan","wx_82":"Napakalakas na pag-ulan","wx_85":"Pag-ulan ng niyebe","wx_86":"Malakas na pag-ulan ng niyebe","wx_95":"Bagyong may kulog","wx_96":"Bagyong may kulog at yelo","wx_99":"Bagyong may kulog at malakas na yelo"}};
+const UI_LANGS = ["en","th","fil"];
+var uiLang = "en";
+function T(k, vars){ const d=UI_I18N[uiLang]||{}; let v = (d[k]!=null) ? d[k] : ((UI_I18N.en||{})[k]!=null ? UI_I18N.en[k] : k);
+  if(vars) for(const key in vars) v = v.split("{"+key+"}").join(String(vars[key])); return v; }
+window.T = T;
 // stations: [lng, lat, warmMean|null, name, cc]
 const LOD = GEO.coastLod;                 // {tiers:{world,regional,detail?}, median_km, scales}
 let activeTier = {name:"regional", key:"regional", rings:(LOD.tiers.regional||[])};
@@ -737,7 +750,7 @@ function fetchHomeConditions(){
   get(s.url+"/v1/forecast?latitude="+lat+"&longitude="+lon+"&current=weather_code,temperature_2m&timezone=auto").then(r=>r.json()).then(j=>{
     const arr=Array.isArray(j)?j:[j], desc=(window.WXLIVE&&window.WXLIVE.wxDesc);
     arr.forEach((o,k)=>{ const c=o&&o.current; if(!c||!homes[k])return;
-      const t=(c.temperature_2m!=null)?fT(c.temperature_2m)+" ":"";   // temperature before condition
+      const t=(c.temperature_2m!=null)?fT(c.temperature_2m)+" ":"";   // (condition text comes from live.js wxDesc, already localised)   // temperature before condition
       homes[k].wx = t + (desc?desc(c.weather_code):""); });
     requestAnimationFrame(render);
   }).catch(()=>{});
@@ -807,13 +820,13 @@ function gotoHome(h){
 }
 function renderPanel(){
   const list=document.getElementById("homeList");
-  if(!homes.length){ list.innerHTML='<div class="empty">None yet. Search a place or use your location.</div>'; return; }
+  if(!homes.length){ list.innerHTML='<div class="empty">'+escapeHtml(T("none_yet"))+'</div>'; return; }
   list.innerHTML="";
   for(const h of homes){
     const row=document.createElement("div"); row.className="h";
-    row.innerHTML=`<span class="dot"></span><span class="nm" title="Go to">${escapeHtml(h.name)}</span>`+
+    row.innerHTML=`<span class="dot"></span><span class="nm" title="${escapeHtml(T("goto"))}">${escapeHtml(h.name)}</span>`+
       `<span class="co">${h.lat.toFixed(1)}, ${h.lon.toFixed(1)}</span>`+
-      `<button class="warn" title="Check warnings">⚠</button><button class="x" title="Remove">×</button>`;
+      `<button class="warn" title="${escapeHtml(T("check_warn"))}">⚠</button><button class="x" title="${escapeHtml(T("remove"))}">×</button>`;
     row.querySelector(".nm").onclick=()=>gotoHome(h);
     row.querySelector(".warn").onclick=()=>{ gotoHome(h); renderLocationCard(h.name,h.lat,h.lon); const b=document.getElementById("wx-live-btn"); if(b) b.click(); };
     row.querySelector(".x").onclick=()=>removeHome(h.id);
@@ -846,7 +859,7 @@ function doSearch(qraw){
   selIdx=matches.length?0:-1; renderResults(qraw);
 }
 function renderResults(q){
-  if(!matches.length){ results.innerHTML='<div class="msg">No place matches “'+escapeHtml(q)+'”. Try your GPS.</div>'; results.classList.add("on"); return; }
+  if(!matches.length){ results.innerHTML='<div class="msg">'+escapeHtml(T("no_match",{q:q}))+'</div>'; results.classList.add("on"); return; }
   results.innerHTML="";
   matches.forEach((e,i)=>{
     const d=document.createElement("div"); d.className="r"+(i===selIdx?" sel":"");
@@ -877,14 +890,14 @@ document.addEventListener("click",e=>{ if(!e.target.closest(".search")) results.
 
 // ---------- GPS (user-initiated, degradable) ----------
 function useMyLocation(){
-  if(!navigator.geolocation){ setLayerMsg("This browser has no geolocation."); return; }
-  setLayerMsg("Locating…");
+  if(!navigator.geolocation){ setLayerMsg(T("no_geo")); return; }
+  setLayerMsg(T("locating"));
   navigator.geolocation.getCurrentPosition(
     p=>{ results.classList.remove("on"); if(window.__closeOvMenus) window.__closeOvMenus();
-         addHome("My location", p.coords.latitude, p.coords.longitude);
+         addHome(T("my_location"), p.coords.latitude, p.coords.longitude);
          const h=homes[homes.length-1]; if(h){ zoom=Math.max(zoom,3.2); gotoHome(h); }
          setLayerMsg(""); openHome(); },
-    err=>{ setLayerMsg(err.code===1?"Location permission denied.":"Couldn’t get your location."); },
+    err=>{ setLayerMsg(err.code===1?T("loc_denied"):T("loc_fail")); },
     {enableHighAccuracy:true, timeout:10000, maximumAge:60000}
   );
 }
@@ -947,10 +960,10 @@ function cardStatsHtml(s){                      // the normals tiles (temperatur
   const n=parseNormals(s[5]);
   const stat=(k,v)=>v?`<div class="card-stat"><div class="k">${k}</div><div class="v">${escapeHtml(v)}</div></div>`:"";
   let g="";
-  if(n.warm) g+=stat("Warmest",fT(+n.warm[1],tempF?0:1).replace("°",tUnit())+" · "+n.warm[0]);
-  if(n.cold) g+=stat("Coldest",fT(+n.cold[1],tempF?0:1).replace("°",tUnit())+" · "+n.cold[0]);
-  if(n.pr)   g+=stat("Annual precip",n.pr[0]+" mm");
-  if(n.el)   g+=stat("Elevation",n.el[0]+" m");
+  if(n.warm) g+=stat(T("warmest"),fT(+n.warm[1],tempF?0:1).replace("°",tUnit())+" · "+n.warm[0]);
+  if(n.cold) g+=stat(T("coldest"),fT(+n.cold[1],tempF?0:1).replace("°",tUnit())+" · "+n.cold[0]);
+  if(n.pr)   g+=stat(T("annual_precip"),n.pr[0]+" mm");
+  if(n.el)   g+=stat(T("elevation"),n.el[0]+" m");
   return g;
 }
 function renderCard(s){
@@ -959,7 +972,7 @@ function renderCard(s){
     (s[4]?s[4].replace(/_/g," "):"")+"  ·  "+s[1].toFixed(2)+"°, "+s[0].toFixed(2)+"°";
   document.getElementById("card-stats").innerHTML=cardStatsHtml(s);
   document.getElementById("card-text").textContent=s[5]||"";
-  document.getElementById("card-foot").textContent="Normals 1991–2020 · WMO / NCEI · baked, read offline";
+  document.getElementById("card-foot").textContent=T("normals_foot");
   setActive(s[1],s[0],s[3]);
   document.getElementById("recent-out").innerHTML=""; document.getElementById("hist-out").innerHTML=""; document.getElementById("hourly-out").innerHTML=""; document.getElementById("hourly-natl-out").innerHTML=""; document.getElementById("daily-out").innerHTML=""; document.querySelectorAll("#hourly-ranges button, #daily-ranges button").forEach(b=>b.classList.remove("on"));
   cardEmpty.hidden=true; cardBody.hidden=false;
@@ -980,8 +993,8 @@ function renderLocationCard(label,lat,lon){
   document.getElementById("card-title").textContent=label||"Location";
   document.getElementById("card-place").textContent=lat.toFixed(2)+"°, "+lon.toFixed(2)+"°";
   document.getElementById("card-stats").innerHTML="";
-  document.getElementById("card-text").textContent="Pinned location (no baked climate station here).";
-  document.getElementById("card-foot").textContent="Live weather & official warnings on request";
+  document.getElementById("card-text").textContent=T("pinned_loc");
+  document.getElementById("card-foot").textContent=T("live_foot");
   setActive(lat,lon,label);
   document.getElementById("recent-out").innerHTML=""; document.getElementById("hist-out").innerHTML=""; document.getElementById("hourly-out").innerHTML=""; document.getElementById("hourly-natl-out").innerHTML=""; document.getElementById("daily-out").innerHTML=""; document.querySelectorAll("#hourly-ranges button, #daily-ranges button").forEach(b=>b.classList.remove("on"));
   cardEmpty.hidden=true; cardBody.hidden=false;
@@ -989,7 +1002,7 @@ function renderLocationCard(label,lat,lon){
 }
 
 // ---------- live.js hooks (English passthrough; the real fetch layer is inlined below) ----------
-window.WXSTR = function(k,fallback){ return fallback; };
+window.WXSTR = function(k,fallback){ const d=UI_I18N[uiLang]; return (d && d[k]!=null) ? d[k] : fallback; };
 window.WX_EDITION = { warnings_feed: "TMD/WMO CAP (Thailand)" };   // national CAP feed for #wx-natl (fail-closed until the author verifies it)
 
 // ---------- Global Weather News tour (GDACS via live.js), carried over from 1History ----------
@@ -1001,7 +1014,7 @@ window.WXNEWS_ENTER=function(items,clock){
   newsItems=(items||[]).filter(it=>it.lat!=null&&it.lng!=null); newsClock=clock||"";
   window.WXNEWS_ACTIVE=true; document.getElementById("wx-news").classList.add("on");
   const t=document.getElementById("wx-news-out");
-  t.textContent=newsItems.length+" live weather events · GDACS, as of "+newsClock+" — tap a dot"; t.hidden=false;
+  t.textContent=T("news_bar",{n:newsItems.length,t:newsClock}); t.hidden=false;
   if(newsItems.length){ showNews(0); }
   requestAnimationFrame(render);
 };
@@ -1015,11 +1028,11 @@ function showNews(i){
   const it=newsItems[i]; if(!it) return; newsSel=i;
   centerOn(it.lng,it.lat);
   const col=NEWS_COL[it.level]||"#9fb0c9";
-  document.getElementById("card-title").textContent=it.title||"Weather event";
-  document.getElementById("card-place").innerHTML=escapeHtml(it.type||"Event")+' <span class="news-lvl" style="background:'+col+'">'+escapeHtml(it.level||"—")+'</span>';
+  document.getElementById("card-title").textContent=it.title||T("weather_event");
+  document.getElementById("card-place").innerHTML=escapeHtml(it.type||T("event"))+' <span class="news-lvl" style="background:'+col+'">'+escapeHtml(it.level||"—")+'</span>';
   document.getElementById("card-stats").innerHTML="";
   document.getElementById("card-text").textContent=it.desc||"";
-  document.getElementById("card-foot").textContent="Data: GDACS — EC (JRC) / UN OCHA, CC-BY 4.0 · as of "+newsClock;
+  document.getElementById("card-foot").textContent=T("news_foot",{t:newsClock});
   setActive(it.lat,it.lng,it.title);   // Live weather / warnings work at the event too
   document.getElementById("recent-out").innerHTML=""; document.getElementById("hist-out").innerHTML=""; document.getElementById("hourly-out").innerHTML=""; document.getElementById("hourly-natl-out").innerHTML=""; document.getElementById("daily-out").innerHTML=""; document.querySelectorAll("#hourly-ranges button, #daily-ranges button").forEach(b=>b.classList.remove("on"));
   cardEmpty.hidden=true; cardBody.hidden=false;
@@ -1157,7 +1170,7 @@ function currentCenter(){ return mode==="globe" ? {lat:pitch, lon:yaw} : {lat:0,
   caret.addEventListener("click",e=>{ e.stopPropagation(); const wasOpen=!homeMenu.hidden; closeMenus(); if(!wasOpen) openHomeMenu(); });
   search.addEventListener("click",e=>{ e.stopPropagation(); const wasOpen=!searchPop.hidden; closeMenus(); if(!wasOpen){ searchPop.hidden=false; search.classList.add("on"); setTimeout(()=>document.getElementById("search").focus(),40); } });
   document.getElementById("btn-settings").addEventListener("click",e=>{ e.stopPropagation(); closeMenus(); openSettings(!document.body.classList.contains("settings-open")); });
-  document.getElementById("pin-current").addEventListener("click",()=>{ const c=currentCenter(); addHome("Pinned view", c.lat, c.lon); const h=homes[homes.length-1]; if(h) gotoHome(h); });
+  document.getElementById("pin-current").addEventListener("click",()=>{ const c=currentCenter(); addHome(T("pinned_view"), c.lat, c.lon); const h=homes[homes.length-1]; if(h) gotoHome(h); });
   document.addEventListener("click",e=>{ if(!e.target.closest("#ov-tl")) closeMenus(); });
 })();
 document.getElementById("z-in").addEventListener("click",()=>{ zoomAt(cx,cy,Math.min(ZMAX[mode]||16,zoom*1.5)); requestAnimationFrame(render); });
@@ -1182,7 +1195,7 @@ function autoLive(){
 
 // ---------- default home station: what the app opens on ----------
 function openHome(){
-  if(!homes.length){ switchTab("live"); document.getElementById("wx-live-out").innerHTML="<em>Pin a home (🔍 search or 📍) to see live conditions here on open.</em>"; cardEmpty.hidden=true; cardBody.hidden=false; document.getElementById("card-title").textContent="No home set"; document.getElementById("card-place").textContent=""; return; }
+  if(!homes.length){ switchTab("live"); document.getElementById("wx-live-out").innerHTML="<em>"+escapeHtml(T("pin_home_hint"))+"</em>"; cardEmpty.hidden=true; cardBody.hidden=false; document.getElementById("card-title").textContent=T("no_home"); document.getElementById("card-place").textContent=""; return; }
   const h=homes[0];
   const st=nearestStation(h.lat,h.lon);
   if(st) selectStation(st); else renderLocationCard(h.name,h.lat,h.lon);
@@ -1199,11 +1212,11 @@ function archiveGet(u){ return fetch(u).then(r=>{ if(r.status===429) return Prom
 function fetchRange(days){
   const out=document.getElementById("recent-out");
   document.querySelectorAll("#recent-ranges button").forEach(b=>b.classList.toggle("on",+b.dataset.days===days));
-  if(!cardLoc){ out.innerHTML="<em>Select a place first.</em>"; return; }
+  if(!cardLoc){ out.innerHTML="<em>"+escapeHtml(T("select_first"))+"</em>"; return; }
   const s=archiveSrc();
-  if(!s){ out.innerHTML="<em>No historical source configured.</em>"; return; }
+  if(!s){ out.innerHTML="<em>"+escapeHtml(T("err_no_hist"))+"</em>"; return; }
   if(s.verified!==true){ out.innerHTML="<em>Historical series awaits the licence-verification pass for "+s.name+" — flip it in PROVENANCE.json to enable (Art. II §2).</em>"; return; }
-  out.innerHTML="<em>Fetching "+days+" days…</em>";
+  out.innerHTML="<em>"+escapeHtml(T("fetching_days",{n:days}))+"</em>";
   const end=new Date(Date.now()-864e5), start=new Date(end-(days-1)*864e5);
   const iso=d=>d.toISOString().slice(0,10);
   const u=s.url+"/v1/archive?latitude="+cardLoc.lat.toFixed(3)+"&longitude="+cardLoc.lon.toFixed(3)
@@ -1211,22 +1224,22 @@ function fetchRange(days){
     +"&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=UTC";
   archiveGet(u).then(j=>{
     const a=(window.WXLIVE&&window.WXLIVE.parseOpenMeteoArchive)?window.WXLIVE.parseOpenMeteoArchive(j):null;
-    if(!a){ out.innerHTML="<em>Historical fetch returned no data.</em>"; return; }
+    if(!a){ out.innerHTML="<em>"+escapeHtml(T("err_hist_none"))+"</em>"; return; }
     const mx=a.tmax, mn=a.tmin, pr=a.prcp;
     const avg=arr=>{const v=arr.filter(x=>x!=null); return v.length? (v.reduce((s,x)=>s+x,0)/v.length):null;};
     const sum=arr=>arr.filter(x=>x!=null).reduce((s,x)=>s+x,0);
     const aMax=avg(mx),aMin=avg(mn),tPr=sum(pr);
-    out.innerHTML='<div class="wx-fc"><span class="wx-fc-day"><b>Avg high</b> '+fT(aMax,1)+'</span>'
-      +'<span class="wx-fc-day"><b>Avg low</b> '+fT(aMin,1)+'</span>'
-      +'<span class="wx-fc-day"><b>Total precip</b> '+Math.round(tPr)+' mm</span>'
-      +'<span class="wx-fc-day"><b>Days</b> '+a.time.length+'</span></div>'
-      +'<div class="chart-lab">Daily high ('+tUnit()+')</div>'
+    out.innerHTML='<div class="wx-fc"><span class="wx-fc-day"><b>'+T("avg_high")+'</b> '+fT(aMax,1)+'</span>'
+      +'<span class="wx-fc-day"><b>'+T("avg_low")+'</b> '+fT(aMin,1)+'</span>'
+      +'<span class="wx-fc-day"><b>'+T("total_precip")+'</b> '+Math.round(tPr)+' mm</span>'
+      +'<span class="wx-fc-day"><b>'+T("days")+'</b> '+a.time.length+'</span></div>'
+      +'<div class="chart-lab">'+T("daily_high",{u:tUnit()})+'</div>'
       +chart(tArr(mx),{labels:(a.time||[]).map(d=>d.slice(5).replace("-","/")),unit:'°'})
-      +'<div class="chart-lab">Daily precipitation (mm)</div>'
+      +'<div class="chart-lab">'+T("daily_precip")+'</div>'
       +bars(pr,{labels:(a.time||[]).map(d=>d.slice(5).replace("-","/")),unit:'mm'});
   }).catch(e=>{ out.innerHTML = (e&&e.rate)
-    ? "<em>Open-Meteo archive is rate-limited right now — try again in a few minutes. The normals fetch script shares this quota; pause it to use this tab immediately.</em>"
-    : "<em>Archive fetch failed.</em>"; });
+    ? "<em>"+escapeHtml(T("rate_limited"))+"</em>"
+    : "<em>"+escapeHtml(T("err_archive"))+"</em>"; });
 }
 // A graph is never naked: min/max gridlines + a dashed MEAN line (every chart) + a 0° line when
 // the range crosses freezing, all with value labels, plus x-axis end labels and a caption.
@@ -1296,23 +1309,23 @@ document.getElementById("recent-ranges").addEventListener("click",e=>{ const b=e
 function fetchHistorical(years){
   const out=document.getElementById("hist-out");
   document.querySelectorAll("#hist-years button").forEach(b=>b.classList.toggle("on",+b.dataset.years===years));
-  if(!cardLoc){ out.innerHTML="<em>Select a place first.</em>"; return; }
+  if(!cardLoc){ out.innerHTML="<em>"+escapeHtml(T("select_first"))+"</em>"; return; }
   const s=archiveSrc();
-  if(!s){ out.innerHTML="<em>No historical source configured.</em>"; return; }
+  if(!s){ out.innerHTML="<em>"+escapeHtml(T("err_no_hist"))+"</em>"; return; }
   if(s.verified!==true){ out.innerHTML="<em>Historical series awaits the licence-verification pass for "+s.name+" — flip it in PROVENANCE.json to enable (Art. II §2).</em>"; return; }
   const today=new Date(), mmdd=today.toISOString().slice(5,10);
   const endY=today.getUTCFullYear()-1, startY=endY-years+1;   // full past years only
-  out.innerHTML="<em>Fetching this date ("+mmdd+") across "+years+" years…</em>";
+  out.innerHTML="<em>"+escapeHtml(T("fetching_date",{d:mmdd,n:years}))+"</em>";
   const u=s.url+"/v1/archive?latitude="+cardLoc.lat.toFixed(3)+"&longitude="+cardLoc.lon.toFixed(3)
     +"&start_date="+startY+"-01-01&end_date="+endY+"-12-31"
     +"&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=UTC";
   archiveGet(u).then(j=>{
     const a=(window.WXLIVE&&window.WXLIVE.parseOpenMeteoArchive)?window.WXLIVE.parseOpenMeteoArchive(j):null;
-    if(!a){ out.innerHTML="<em>Historical fetch returned no data.</em>"; return; }
+    if(!a){ out.innerHTML="<em>"+escapeHtml(T("err_hist_none"))+"</em>"; return; }
     const rows=[];
     for(let i=0;i<a.time.length;i++){ if(a.time[i].slice(5)===mmdd)
       rows.push({y:+a.time[i].slice(0,4), mx:a.tmax[i], mn:a.tmin[i], pr:a.prcp[i]}); }
-    if(!rows.length){ out.innerHTML="<em>No records for "+mmdd+" in that span.</em>"; return; }
+    if(!rows.length){ out.innerHTML="<em>"+escapeHtml(T("no_records",{d:mmdd}))+"</em>"; return; }
     const y0=String(rows[0].y), y1=String(rows[rows.length-1].y);
     const ylabels=rows.map(r=>String(r.y));
     let list='';
@@ -1320,15 +1333,15 @@ function fetchHistorical(years){
       +fT(r.mx)+'/'+fT(r.mn)
       +(r.pr!=null&&r.pr>0?'  <i>'+Math.round(r.pr)+'mm</i>':'')+'</div>';
     // graphs FIRST, then the year-by-year list
-    out.innerHTML='<div class="wx-fc-day" style="margin-bottom:2px"><b>'+mmdd+'</b> · this date across '+rows.length+' years</div>'
-      +'<div class="chart-lab">High on '+mmdd+' ('+tUnit()+')</div>'
+    out.innerHTML='<div class="wx-fc-day" style="margin-bottom:2px"><b>'+mmdd+'</b> · '+T("this_date",{n:rows.length})+'</div>'
+      +'<div class="chart-lab">'+T("high_on",{d:mmdd,u:tUnit()})+'</div>'
       +chart(tArr(rows.map(r=>r.mx)),{labels:ylabels,unit:'°'})
-      +'<div class="chart-lab">Precipitation on '+mmdd+' (mm)</div>'
+      +'<div class="chart-lab">'+T("precip_on",{d:mmdd})+'</div>'
       +bars(rows.map(r=>r.pr),{labels:ylabels,unit:'mm'})
-      +'<div class="chart-lab">Year by year</div>'+list;
+      +'<div class="chart-lab">'+T("year_by_year")+'</div>'+list;
   }).catch(e=>{ out.innerHTML = (e&&e.rate)
-    ? "<em>Open-Meteo archive is rate-limited right now — try again in a few minutes. The normals fetch script shares this quota; pause it to use this tab immediately.</em>"
-    : "<em>Archive fetch failed.</em>"; });
+    ? "<em>"+escapeHtml(T("rate_limited"))+"</em>"
+    : "<em>"+escapeHtml(T("err_archive"))+"</em>"; });
 }
 document.getElementById("hist-years").addEventListener("click",e=>{ const b=e.target.closest("button"); if(b) fetchHistorical(+b.dataset.years); });
 
@@ -1337,20 +1350,20 @@ function hlabel(iso){ const h=+iso.slice(11,13); return (h%12||12)+(h<12?"am":"p
 function fetchHourly(hours){
   const out=document.getElementById("hourly-out");
   document.querySelectorAll("#hourly-ranges button").forEach(b=>b.classList.toggle("on",+b.dataset.hours===hours));
-  if(!cardLoc){ out.innerHTML="<em>Select a place first.</em>"; return; }
+  if(!cardLoc){ out.innerHTML="<em>"+escapeHtml(T("select_first"))+"</em>"; return; }
   const s=omForecastSrc();
   if(!s||s.verified!==true){ out.innerHTML="<em>Hourly source awaits the licence-verification pass.</em>"; return; }
-  out.innerHTML="<em>Fetching next "+hours+" hours…</em>";
+  out.innerHTML="<em>"+escapeHtml(T("fetching_hours",{n:hours}))+"</em>";
   const fdays=Math.min(7,Math.ceil(hours/24)+1);
   const u=s.url+"/v1/forecast?latitude="+cardLoc.lat.toFixed(3)+"&longitude="+cardLoc.lon.toFixed(3)
     +"&hourly=weather_code,temperature_2m,precipitation,precipitation_probability&forecast_days="+fdays+"&timezone=auto";
   fetch(u).then(r=>r.json()).then(j=>{
     const H=j&&j.hourly;
-    if(!H||!H.time||!H.time.length){ out.innerHTML="<em>Hourly fetch returned no data.</em>"; return; }
+    if(!H||!H.time||!H.time.length){ out.innerHTML="<em>"+escapeHtml(T("err_hourly_none"))+"</em>"; return; }
     const off=(j.utc_offset_seconds||0)*1000, epoch=t=>Date.parse(t+"Z")-off;   // location-local -> UTC ms
     let st=0; for(let i=0;i<H.time.length;i++){ if(epoch(H.time[i])>=Date.now()-36e5){ st=i; break; } }
     const idx=[]; for(let i=st;i<Math.min(st+hours,H.time.length);i++) idx.push(i);
-    if(idx.length<2){ out.innerHTML="<em>Hourly fetch returned no data.</em>"; return; }
+    if(idx.length<2){ out.innerHTML="<em>"+escapeHtml(T("err_hourly_none"))+"</em>"; return; }
     const temps=idx.map(i=>H.temperature_2m[i]);
     const precs=idx.map(i=>H.precipitation?H.precipitation[i]:null);
     const wc=H.weather_code||[]; const icon=c=>(window.WXLIVE&&window.WXLIVE.wxIcon)?window.WXLIVE.wxIcon(c):"";
@@ -1358,7 +1371,7 @@ function fetchHourly(hours){
     const step=Math.max(1,Math.ceil(idx.length/12));   // keep the conditions table readable
     const cell=(cls,v)=>'<td class="'+cls+'">'+v+'</td>';
     let head='<tr><th class="rh"></th>', rIc='<tr><td class="rh"></td>',
-        rTe='<tr><td class="rh">Temp</td>', rPr='<tr><td class="rh">Precip</td>';
+        rTe='<tr><td class="rh">'+T("row_temp")+'</td>', rPr='<tr><td class="rh">'+T("row_precip")+'</td>';
     for(let k=0;k<idx.length;k+=step){ const i=idx[k];
       head+='<th>'+hlabel(H.time[i])+'</th>';
       rIc+=cell('ic',icon(wc[i]));
@@ -1369,40 +1382,40 @@ function fetchHourly(hours){
     head+='</tr>'; rIc+='</tr>'; rTe+='</tr>'; rPr+='</tr>';
     const table='<div class="ctab-scroll"><table class="ctab"><thead>'+head+'</thead><tbody>'+rIc+rTe+rPr+'</tbody></table></div>';
     const hlabels=idx.map(i=>hlabel(H.time[i]));
-    out.innerHTML='<div class="chart-lab">Conditions</div>'+table
-      +'<div class="chart-lab">Temperature ('+tUnit()+')</div>'+chart(tArr(temps),{labels:hlabels,unit:'°'})
-      +'<div class="chart-lab">Precipitation (mm)</div>'+bars(precs,{labels:hlabels,unit:'mm'})
-      +'<div class="wx-fc"><span class="wx-fc-day"><b>Range</b> '+fT(Math.min.apply(null,tv)).replace('°','')+'–'+fT(Math.max.apply(null,tv))+'</span>'
-      +'<span class="wx-fc-day"><b>Total precip</b> '+(Math.round(tp.reduce((a,b)=>a+b,0)*10)/10)+' mm</span>'
-      +'<span class="wx-fc-day"><b>Hours</b> '+idx.length+'</span></div>';
-  }).catch(()=>{ out.innerHTML="<em>Hourly fetch failed.</em>"; });
+    out.innerHTML='<div class="chart-lab">'+T("conditions")+'</div>'+table
+      +'<div class="chart-lab">'+T("temperature",{u:tUnit()})+'</div>'+chart(tArr(temps),{labels:hlabels,unit:'°'})
+      +'<div class="chart-lab">'+T("precipitation")+'</div>'+bars(precs,{labels:hlabels,unit:'mm'})
+      +'<div class="wx-fc"><span class="wx-fc-day"><b>'+T("range")+'</b> '+fT(Math.min.apply(null,tv)).replace('°','')+'–'+fT(Math.max.apply(null,tv))+'</span>'
+      +'<span class="wx-fc-day"><b>'+T("total_precip")+'</b> '+(Math.round(tp.reduce((a,b)=>a+b,0)*10)/10)+' mm</span>'
+      +'<span class="wx-fc-day"><b>'+T("hours")+'</b> '+idx.length+'</span></div>';
+  }).catch(()=>{ out.innerHTML="<em>"+escapeHtml(T("err_hourly"))+"</em>"; });
 }
 document.getElementById("hourly-ranges").addEventListener("click",e=>{ const b=e.target.closest("button"); if(b) fetchHourly(+b.dataset.hours); });
 document.getElementById("hourly-update").addEventListener("click",()=>{ const on=document.querySelector("#hourly-ranges button.on"); fetchHourly(on?+on.dataset.hours:24); });
 document.getElementById("hourly-natl").addEventListener("click",()=>{ const b=document.getElementById("hourly-natl-out");
   if(b && !b.hidden && b.innerHTML){ b.hidden=true; return; }              // second press closes
-  if(window.WXLIVE && window.WXLIVE.natlFetch) window.WXLIVE.natlFetch(b); else b.innerHTML="<em>Warnings unavailable.</em>"; });
+  if(window.WXLIVE && window.WXLIVE.natlFetch) window.WXLIVE.natlFetch(b); else b.innerHTML="<em>"+escapeHtml(T("warn_unavail"))+"</em>"; });
 
 // ---------- Daily tab: 7 / 14-day forecast (Open-Meteo forecasts up to 16 days) ----------
-function dayLbl(iso){ const D=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]; const dt=new Date(iso+"T12:00:00"); return isNaN(dt)?iso.slice(5):D[dt.getDay()]+" "+dt.getDate(); }
+function dayLbl(iso){ const dt=new Date(iso+"T12:00:00"); return isNaN(dt)?iso.slice(5):T("dow_"+dt.getDay())+" "+dt.getDate(); }
 function fetchDaily(days){
   const out=document.getElementById("daily-out");
   document.querySelectorAll("#daily-ranges button").forEach(b=>b.classList.toggle("on",+b.dataset.days===days));
-  if(!cardLoc){ out.innerHTML="<em>Select a place first.</em>"; return; }
+  if(!cardLoc){ out.innerHTML="<em>"+escapeHtml(T("select_first"))+"</em>"; return; }
   const s=omForecastSrc();
   if(!s||s.verified!==true){ out.innerHTML="<em>Forecast source awaits the licence-verification pass.</em>"; return; }
-  out.innerHTML="<em>Fetching "+days+"-day forecast…</em>";
+  out.innerHTML="<em>"+escapeHtml(T("fetching_fc",{n:days}))+"</em>";
   const u=s.url+"/v1/forecast?latitude="+cardLoc.lat.toFixed(3)+"&longitude="+cardLoc.lon.toFixed(3)
     +"&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto&forecast_days="+days;
   fetch(u).then(r=>r.json()).then(j=>{
     const D=j&&j.daily;
-    if(!D||!D.time||!D.time.length){ out.innerHTML="<em>Forecast returned no data.</em>"; return; }
+    if(!D||!D.time||!D.time.length){ out.innerHTML="<em>"+escapeHtml(T("err_fc_none"))+"</em>"; return; }
     const mx=D.temperature_2m_max, mn=D.temperature_2m_min, pr=D.precipitation_sum, wc=D.weather_code||[];
     const icon=c=>(window.WXLIVE&&window.WXLIVE.wxIcon)?window.WXLIVE.wxIcon(c):"";
     const dlabels=D.time.map(dayLbl);
     const cell=(cls,v)=>'<td class="'+cls+'">'+v+'</td>';
     let head='<tr><th class="rh"></th>', rIc='<tr><td class="rh"></td>',
-        rHi='<tr><td class="rh">High</td>', rLo='<tr><td class="rh">Low</td>', rPr='<tr><td class="rh">Precip</td>';
+        rHi='<tr><td class="rh">'+T("row_high")+'</td>', rLo='<tr><td class="rh">'+T("row_low")+'</td>', rPr='<tr><td class="rh">'+T("row_precip")+'</td>';
     for(let i=0;i<D.time.length;i++){
       head+='<th>'+dayLbl(D.time[i])+'</th>';
       rIc+=cell('ic',icon(wc[i]));
@@ -1412,10 +1425,10 @@ function fetchDaily(days){
     }
     head+='</tr>'; rIc+='</tr>'; rHi+='</tr>'; rLo+='</tr>'; rPr+='</tr>';
     const table='<div class="ctab-scroll"><table class="ctab"><thead>'+head+'</thead><tbody>'+rIc+rHi+rLo+rPr+'</tbody></table></div>';
-    out.innerHTML='<div class="chart-lab">Day by day</div>'+table
-      +'<div class="chart-lab">Daily high ('+tUnit()+')</div>'+chart(tArr(mx),{labels:dlabels,unit:'°'})
-      +'<div class="chart-lab">Daily precipitation (mm)</div>'+bars(pr,{labels:dlabels,unit:'mm'});
-  }).catch(()=>{ out.innerHTML="<em>Forecast fetch failed.</em>"; });
+    out.innerHTML='<div class="chart-lab">'+T("day_by_day")+'</div>'+table
+      +'<div class="chart-lab">'+T("daily_high",{u:tUnit()})+'</div>'+chart(tArr(mx),{labels:dlabels,unit:'°'})
+      +'<div class="chart-lab">'+T("daily_precip")+'</div>'+bars(pr,{labels:dlabels,unit:'mm'});
+  }).catch(()=>{ out.innerHTML="<em>"+escapeHtml(T("err_fc"))+"</em>"; });
 }
 document.getElementById("daily-ranges").addEventListener("click",e=>{ const b=e.target.closest("button"); if(b) fetchDaily(+b.dataset.days); });
 
@@ -1461,8 +1474,8 @@ function fetchGrid(cb){
   if(grid){ cb&&cb(); return; }
   if(gridLoading) return;
   const s=omForecastSrc();
-  if(!s||s.verified!==true){ setLayerMsg("live source unverified"); return; }
-  gridLoading=true; setLayerMsg("fetching live grid…");
+  if(!s||s.verified!==true){ setLayerMsg(T("unverified")); return; }
+  gridLoading=true; setLayerMsg(T("grid_fetch"));
   // Open-Meteo counts EACH coordinate toward its ~600/minute limit, and rejects a burst with
   // HTTP 429 "Minutely API request limit exceeded". So keep the whole grid small (~500 pts at
   // GSTEP=10) AND fetch the chunks one after another with a short gap — never in parallel.
@@ -1489,13 +1502,13 @@ function fetchGrid(cb){
       if(ci<chunks.length-1) await sleep(400);   // small gap between requests
     }
     gridLoading=false;
-    if(!gp.length){ setLayerMsg("live grid unavailable — baked map stands"); return; }
+    if(!gp.length){ setLayerMsg(T("grid_unavail")); return; }
     grid=gp; gridAt=new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});   // "14:30"
     gridMap={}; for(const pt of gp) gridMap[Math.round(pt.lat)+"|"+Math.round(pt.lon)]=pt;
     buildIsobars();                                   // contour the fresh MSLP field once (cached for redraws)
     bmpCache={};                                       // invalidate baked colour bitmaps; the active one rebuilds on next draw
     saveGridCache();                                   // remember it so a reload reuses it instead of refetching
-    setLayerMsg("live · as of "+gridAt); cb&&cb(); requestAnimationFrame(render);
+    setLayerMsg(T("live_asof",{t:gridAt})); cb&&cb(); requestAnimationFrame(render);
   })();
 }
 function layerColor(pt){
@@ -1622,8 +1635,8 @@ function drawRaster(){
 function rasterMsg(){                     // reflect state in the "as of" chip + attribution overlay
   const at=document.getElementById("owm-attrib"), s=rasterSrc();
   if(!s||s.verified!==true){ setLayerMsg("raster awaits licence-verification (flip in PROVENANCE)"); if(at)at.hidden=true; return false; }
-  if(!owmKey()){ setLayerMsg("add your free OpenWeatherMap key in settings ↓"); if(at)at.hidden=true; return false; }
-  setLayerMsg("fetching raster…"); if(at)at.hidden=true; return true;
+  if(!owmKey()){ setLayerMsg(T("add_key")); if(at)at.hidden=true; return false; }
+  setLayerMsg(T("raster_fetch")); if(at)at.hidden=true; return true;
 }
 // Best-effort diagnosis so a blank layer is never silent: if no tile has loaded shortly after a key
 // is in place, ask OWM directly and report the real reason (a fresh key 401s until it activates).
@@ -1638,10 +1651,10 @@ function probeRaster(){
       if(rasterLayer!==started || rasterLoaded>0) return;
       const st=r.status;
       if(st>=200&&st<300) setLayerMsg("© OpenWeatherMap · live");   // (tiles will paint as they arrive)
-      else if(st===401) setLayerMsg("key not accepted yet — new OWM keys take ~10 min to 2 h to activate");
-      else if(st===429) setLayerMsg("OpenWeatherMap rate limit — wait a minute");
-      else setLayerMsg("OpenWeatherMap returned "+st+" — check the key");
-    }catch(e){ if(rasterLayer===started && rasterLoaded===0) setLayerMsg("tiles didn't load (offline, or blocked in this preview) — baked map stands"); }
+      else if(st===401) setLayerMsg(T("key_wait"));
+      else if(st===429) setLayerMsg(T("owm_rate"));
+      else setLayerMsg(T("owm_ret",{s:st}));
+    }catch(e){ if(rasterLayer===started && rasterLoaded===0) setLayerMsg(T("tiles_fail")); }
   }, 3500);
 }
 
@@ -1911,8 +1924,8 @@ function applyLiveLayer(val){
       if(val==="isobar" && !isoSegs) buildIsobars();
       const ok = !!buildFieldOK(val);
       if(val==="wind") startAnim();                    // Wind = speed colour field + animated direction, one layer
-      const hint = (PREFER_OWM[val] && !owmKey()) ? " — coarse overview; add an OWM key in Settings for detail" : "";
-      setLayerMsg(ok ? (cfg.label+" · Open-Meteo · as of "+gridAt+hint) : (cfg.label+" field unavailable (grid rate-limited — wait a minute)"));
+      const hint = (PREFER_OWM[val] && !owmKey()) ? T("coarse_hint") : "";
+      setLayerMsg(ok ? (T("field_asof",{l:T("l_"+val),t:gridAt})+hint) : T("field_unavail",{l:T("l_"+val)}));
       updateLegend(); requestAnimationFrame(render);
     };
     ensureGrid(finish);
@@ -1932,10 +1945,10 @@ document.getElementById("layerbar").addEventListener("click",e=>{ const b=e.targ
   function validateKey(){                 // tell the reader if the key works yet (loads a probe tile)
     const k=owmKey();
     if(!k){ setStat("",""); return; }
-    setStat("wait","checking…"); clearTimeout(vT);
+    setStat("wait",T("checking")); clearTimeout(vT);
     vT=setTimeout(()=>{ const cur=k; const im=new Image();
-      im.onload=()=>{ if(owmKey()===cur) setStat("ok","✓ key active"); };
-      im.onerror=()=>{ if(owmKey()===cur) setStat("wait","⏳ not active yet — new keys take ~10 min–2 h (or check for typos)"); };
+      im.onload=()=>{ if(owmKey()===cur) setStat("ok",T("key_ok")); };
+      im.onerror=()=>{ if(owmKey()===cur) setStat("wait",T("key_pending")); };
       im.src="https://tile.openweathermap.org/map/temp_new/2/2/2.png?appid="+encodeURIComponent(k)+"&_="+Date.now();
     }, 700);
   }
@@ -1958,11 +1971,79 @@ const phoneMQ=window.matchMedia("(max-width:600px)");
 // harmless (and silently ignored) where the platform does not allow a lock.
 try{ if(screen.orientation && screen.orientation.lock) screen.orientation.lock(phoneMQ.matches?"portrait":"landscape").catch(()=>{}); }catch(e){}
 
+// ---------- apply the UI language to every static element; JS-built text calls T() at render time ----------
+// selector → [key, mode]   mode: t = textContent (default), h = innerHTML (our own strings only), ph = placeholder, ti = title
+const UI_STATIC = {
+  "#btn-home":["home"], "#btn-home@ti":["home_t"], "#btn-home-caret@ti":["homemenu_t"],
+  "#btn-loc":["loc"], "#btn-loc@ti":["loc_t"], "#btn-search":["search"], "#btn-search@ti":["search_t"],
+  "#search@ph":["search_ph"], "#gps@ti":["gps_t"],
+  "#wx-news":["news"], "#wx-news@ti":["news_t"], "#btn-settings":["settings"], "#btn-settings@ti":["settings_t"],
+  "#btn-lang":["lang_btn"], "#btn-lang@ti":["lang_t"],
+  "#mode button[data-m=globe]":["globe"], "#mode button[data-m=ee]":["map"], "#z-in@ti":["zoom_in"], "#z-out@ti":["zoom_out"],
+  "#pin-current":["pin_current"], "#homeMenu h2":["home_positions"],
+  "#layerbar button[data-l=off]":["l_off"], "#layerbar button[data-l=temp]":["l_temp"], "#layerbar button[data-l=precip]":["l_precip"],
+  "#layerbar button[data-l=cloud]":["l_cloud"], "#layerbar button[data-l=wind]":["l_wind"], "#layerbar button[data-l=isobar]":["l_pressure"],
+  "#owm-toast":["owm_toast"],
+  "#card-empty":["card_empty"],
+  "#card-tabs button[data-tab=live]":["tab_daily"], "#card-tabs button[data-tab=hourly]":["tab_hourly"], "#card-tabs button[data-tab=recent]":["tab_recent"],
+  "#card-tabs button[data-tab=hist]":["tab_hist"], "#card-tabs button[data-tab=normals]":["tab_normals"],
+  "#wx-live-btn":["update"], "#wx-natl":["natl"], "#hourly-update":["update"], "#hourly-natl":["natl"],
+  "#daily-ranges button[data-days='7']":["d7"], "#daily-ranges button[data-days='14']":["d14"],
+  "#hourly-ranges button[data-hours='12']":["h12"], "#hourly-ranges button[data-hours='24']":["h24"], "#hourly-ranges button[data-hours='48']":["h48"],
+  "#recent-ranges button[data-days='7']":["r7"], "#recent-ranges button[data-days='30']":["r30"], "#recent-ranges button[data-days='90']":["r90"],
+  "#recent-ranges button[data-days='180']":["r180"], "#recent-ranges button[data-days='365']":["r365"],
+  "#hist-years button[data-years='5']":["y5"], "#hist-years button[data-years='10']":["y10"], "#hist-years button[data-years='20']":["y20"], "#hist-years button[data-years='30']":["y30"],
+  "#tab-hourly .card-foot":["foot_hourly"], "#tab-recent .card-foot":["foot_recent"], "#tab-hist .card-foot":["foot_hist"],
+  "#tab-normals .card-tag":["normals_tag"],
+  "#bar .sheet-h":["settings_h"], "#bar .grp>label":["owm_key"], "#owmKey@ph":["owm_ph"], "#bar .owmget":["get_key"],
+  "#ckHD@lbl":["hd"], "#ckF@lbl":["fahrenheit"], "#ckStations@lbl":["stations"], "#ckBorders@lbl":["borders"],
+  "#ckGrat@lbl":["graticule"], "#ckIsoFill@lbl":["isofill"],
+  "#owm-help b":["owm_help_title"], "#owm-help li:nth-child(1)":["owm_help_1","h"], "#owm-help li:nth-child(2)":["owm_help_2","h"],
+  "#owm-help li:nth-child(3)":["owm_help_3","h"], "#owm-help .owm-note":["owm_note"],
+  "#meridianWrap@first":["center"], "#about-btn":["about_btn"], "#bar .contact-line@first":["contact"], "#settings-done":["done"],
+  ".about-tag":["about_tag"], ".about-card .about-lead:nth-of-type(1)":["about_lead"],
+  ".about-card h3:nth-of-type(1)":["cred_h"], ".about-card h3:nth-of-type(2)":["privacy_h"],
+  ".about-card .about-lead:nth-of-type(2)":["about_privacy"], ".about-foot":["about_foot"]
+};
+function applyLang(code, rerender){
+  if(!UI_LANGS.includes(code)) code="en";
+  uiLang=code; document.documentElement.lang = code==="fil" ? "fil" : code;
+  for(const sel in UI_STATIC){
+    const [key,mode]=UI_STATIC[sel]; const at=sel.indexOf("@"); const q=at<0?sel:sel.slice(0,at), how=at<0?(mode||"t"):sel.slice(at+1);
+    let el=null; try{ el=document.querySelector(q); }catch(e){}
+    if(!el) continue;
+    const v=T(key);
+    if(how==="ti") el.title=v;
+    else if(how==="ph") el.placeholder=v;
+    else if(how==="h") el.innerHTML=v;
+    else if(how==="lbl"){ const lab=el.closest("label"); if(lab){ const tn=[...lab.childNodes].filter(x=>x.nodeType===3).pop(); if(tn) tn.nodeValue=" "+v; } }
+    else if(how==="first"){ const tn=[...el.childNodes].find(x=>x.nodeType===3 && x.nodeValue.trim()); if(tn) tn.nodeValue=v+(tn.nodeValue.endsWith(" ")||tn.nodeValue.endsWith("\u00a0")?"\u00a0":" "); }
+    else el.textContent=v;
+  }
+  const lm=document.getElementById("langMenu");
+  if(lm) lm.innerHTML=UI_LANGS.map(l=>'<button class="lang-row'+(l===uiLang?' on':'')+'" data-lang="'+l+'">'+(UI_I18N[l]&&UI_I18N[l].lang_name||l)+'</button>').join("");
+  if(rerender){
+    renderPanel();
+    if(typeof refreshUnits==="function") refreshUnits();      // re-runs the open card tabs, legend, home pins
+    if(!homes.length && typeof openHome==="function") openHome();
+    if(window.WXNEWS_ACTIVE){ const t=document.getElementById("wx-news-out"); if(t) t.textContent=T("news_bar",{n:newsItems.length,t:newsClock}); }
+    if(typeof updateOwmToast==="function") updateOwmToast();
+  }
+}
+(function(){
+  const btn=document.getElementById("btn-lang"), menu=document.getElementById("langMenu"); if(!btn||!menu) return;
+  btn.addEventListener("click",e=>{ e.stopPropagation(); menu.hidden=!menu.hidden; });
+  menu.addEventListener("click",e=>{ const b=e.target.closest("button[data-lang]"); if(!b) return; menu.hidden=true; applyLang(b.dataset.lang,true); if(typeof savePrefs==="function") savePrefs(); });
+  document.addEventListener("click",e=>{ if(!e.target.closest("#ov-br")) menu.hidden=true; });
+})();
+// first language: the saved one (applyPrefs), else the device language
+(function(){ const nl=(navigator.language||"").toLowerCase(); if(nl.startsWith("th")) uiLang="th"; else if(nl.startsWith("fil")||nl.startsWith("tl")) uiLang="fil"; })();
+
 // ---------- remember the user's selections (localStorage only; never sent anywhere) ----------
 const PKEY="1w.prefs.v1";
 function savePrefs(){ try{ localStorage.setItem(PKEY, JSON.stringify({
   mode:mode, layer:liveLayer, stations:opt.stations, borders:opt.borders, grat:opt.grat,
-  isoFill:isoFill, hd:hdMode, lon0:lon0, f:tempF
+  isoFill:isoFill, hd:hdMode, lon0:lon0, f:tempF, lang:uiLang
 })); }catch(e){} }
 let pendingLayer=null;                              // a restored live layer, armed to load on first interaction (§1: no boot fetch)
 function applyPrefs(){
@@ -1973,6 +2054,7 @@ function applyPrefs(){
   if(p.isoFill!=null){ isoFill=p.isoFill; const c=document.getElementById("ckIsoFill"); if(c)c.checked=p.isoFill; }
   if(p.hd!=null){ hdMode=p.hd; const c=document.getElementById("ckHD"); if(c)c.checked=p.hd; }
   if(p.f!=null){ tempF=!!p.f; const c=document.getElementById("ckF"); if(c)c.checked=tempF; }
+  if(p.lang && UI_LANGS.includes(p.lang)) uiLang=p.lang;
   if(typeof p.lon0==="number"){ lon0=p.lon0; const m=document.getElementById("meridian"); if(m){ m.value=Math.round(lon0); const mv=document.getElementById("mval"); if(mv)mv.textContent=Math.round(lon0)+"°"; } }
   if(p.mode==="ee") setMode("ee");
   if(p.layer==="windanim") p.layer="wind";          // migrate: wind + direction are one layer now
@@ -1980,14 +2062,14 @@ function applyPrefs(){
     liveLayer=p.layer;
     document.querySelectorAll("#layerbar button").forEach(b=>b.classList.toggle("on",b.dataset.l===p.layer));
     document.querySelectorAll("#layerbar button[data-l=off]").forEach(b=>b.classList.remove("on"));
-    pendingLayer=p.layer; setLayerMsg("tap the map to load this layer");
+    pendingLayer=p.layer; setLayerMsg(T("tap_load"));
   }
   updateLegend();
 }
 function armLayerLoad(){ if(!pendingLayer) return; const L=pendingLayer; pendingLayer=null; applyLiveLayer(L); }
 ["pointerdown","wheel","keydown"].forEach(ev=> window.addEventListener(ev, function once(){ window.removeEventListener(ev,once); armLayerLoad(); fetchHomeConditions(); }, {passive:true}));
 
-loadHomes(); renderPanel(); applyPrefs(); render();
+loadHomes(); applyPrefs(); applyLang(uiLang); renderPanel(); render();
 if(homes.length){ zoom=3.2; centerOn(homes[0].lon, homes[0].lat); requestAnimationFrame(render); }  // open zoomed into the first home
 openHome();   // the app opens on the default home station (Art. I amendment: its Live tab auto-updates)
 window.addEventListener("beforeunload", savePrefs);
@@ -2270,11 +2352,11 @@ document.addEventListener("visibilitychange", ()=>{ if(document.hidden) savePref
   }
   var MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   function fmtStamp(d) {   // e.g. "Sun 27 Sep 14:30" - date with day of week
-    return DOW[d.getDay()] + " " + d.getDate() + " " + MON[d.getMonth()] + " " + fmtClock(d);
+    return S("dow_" + d.getDay(), DOW[d.getDay()]) + " " + d.getDate() + " " + S("mon_" + d.getMonth(), MON[d.getMonth()]) + " " + fmtClock(d);
   }
   function dlabel(ds) {    // a forecast day's short label, e.g. "Mon 28"
     var dt = new Date(ds + "T12:00:00");
-    return isNaN(dt) ? ds.slice(5) : DOW[dt.getDay()] + " " + dt.getDate();
+    return isNaN(dt) ? ds.slice(5) : S("dow_" + dt.getDay(), DOW[dt.getDay()]) + " " + dt.getDate();
   }
 
   function srcFor(e) {
