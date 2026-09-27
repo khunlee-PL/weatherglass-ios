@@ -119,7 +119,10 @@ workflows:
           proj = Xcodeproj::Project.open('ios/App/App.xcodeproj')
           target = proj.targets.find { |t| t.name == 'App' }
           group  = proj.main_group['App'] || proj.main_group
-          path   = 'App/PrivacyInfo.xcprivacy'
+          # The path is RELATIVE TO THE GROUP. The 'App' group already resolves to ios/App/App/, so
+          # the reference must be the bare filename — 'App/PrivacyInfo.xcprivacy' made Xcode look for
+          # ios/App/App/App/PrivacyInfo.xcprivacy and fail the archive (build #4: "no such file").
+          path   = 'PrivacyInfo.xcprivacy'
           unless group.files.any? { |f| f.path == 'PrivacyInfo.xcprivacy' }
             ref = group.new_reference(path)
             target.add_resources([ref])
