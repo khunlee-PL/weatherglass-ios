@@ -1,0 +1,6 @@
+node_modules/
+build/
+*.ipa
+.DS_Store
+# The native iOS project is generated fresh in CI (see codemagic.yaml).
+ios/

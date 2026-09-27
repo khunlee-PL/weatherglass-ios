@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- PrivacyInfo.xcprivacy — Weatherglass privacy manifest.
+     Every claim here is checkable against the code (Constitution Art. I: the app boots with the
+     wire pulled and reaches out only for the live data the user requests):
+       · NSPrivacyTracking = false — nothing tracks the reader; no ad/analytics SDKs, no brokers.
+       · NSPrivacyTrackingDomains = empty — the app contacts no tracking domains.
+       · NSPrivacyCollectedDataTypes = empty — WE collect nothing. There is no server of ours,
+         no account, no analytics. When the reader taps for weather/warnings the app sends the
+         requested coordinates DIRECTLY to the chosen weather service; it is not collected or
+         stored by us, so it is not a "collected data type" under Apple's definition. (In the
+         App Store nutrition labels, declare Location → App Functionality, Not Linked, No Tracking.)
+       · Required-reason API: UserDefaults (Capacitor's preference store + the WebView's
+         localStorage bridge, where home pins and settings live) — CA92.1: the app's own settings,
+         stored on this device, never leaving it. -->
+<plist version="1.0">
+<dict>
+    <key>NSPrivacyTracking</key>
+    <false/>
+    <key>NSPrivacyTrackingDomains</key>
+    <array/>
+    <key>NSPrivacyCollectedDataTypes</key>
+    <array/>
+    <key>NSPrivacyAccessedAPITypes</key>
+    <array>
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>CA92.1</string>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>

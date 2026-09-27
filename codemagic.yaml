@@ -1,0 +1,199 @@
+# Weatherglass — iOS build & TestFlight pipeline for Codemagic.
+#
+# Modeled on the 1history-ios pipeline that already builds green on this account, but far simpler:
+# Weatherglass is one self-contained HTML file (the atlas is baked inline), so there is
+#   · NO On-Demand Resources (nothing staged or fetched on consent),
+#   · NO StoreKit/IAP (free app, no products),
+#   · NO language packs / CFBundleLocalizations (English base; the app localizes nothing natively).
+# The wrapper's only native concerns are geolocation, orientation, and the privacy manifest.
+#
+# One-time setup (browser only — see README.md):
+#   1. Codemagic > Teams > Integrations > App Store Connect: the existing "Paisarn" key works for
+#      every app on the account.
+#   2. Create a provisioning profile for live.weatherglass.app named "weatherglass_appstore" and
+#      store it in Codemagic (the distribution cert "kaleido-1" is account-wide and reused).
+#   3. The Bundle ID live.weatherglass.app must match capacitor.config.json AND the App Store
+#      Connect app record exactly, or signing fails.
+#   4. Push a tag:  git tag v1.0.0 && git push origin v1.0.0
+
+workflows:
+  ios-release:
+    name: Weatherglass iOS Release
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+
+    integrations:
+      app_store_connect: Paisarn      # account-wide ASC API key in Codemagic (reused from 1History)
+
+    environment:
+      ios_signing:
+        # AUTOMATIC code signing via the App Store Connect API key (the `Paisarn` integration above).
+        # Codemagic fetches — creating if missing — the distribution certificate and an App Store
+        # provisioning profile for this bundle id, so there is NOTHING to create or upload by hand
+        # for the first build. `xcode-project use-profiles` (below) then applies them to the archive.
+        distribution_type: app_store
+        bundle_identifier: live.weatherglass.app
+      vars:
+        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        XCODE_SCHEME: "App"
+        # THE MARKETING VERSION — CFBundleShortVersionString, the App Store's "version number".
+        # BUMP THIS FOR EVERY RELEASE. A released version's train CLOSES: once approved, App Store
+        # Connect refuses every further build under it (90062 / 90186). Record closed trains here.
+        #   1.0.0  → OPEN — first submission
+        MARKETING_VERSION: "1.0.0"
+      node: 20
+      xcode: latest
+      cocoapods: default
+
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'v*'
+
+    cache:
+      cache_paths:
+        - $HOME/.npm
+        - $CM_BUILD_DIR/node_modules
+        - $HOME/Library/Caches/CocoaPods
+
+    scripts:
+      - name: Guard — the shipped app must be present and PWA-injected
+        script: |
+          # tools/ship_ios.py (in the corpus repo) fills www/. A build without it would ship an
+          # empty app; a half-uploaded set (files reach GitHub's web UI one at a time) would ship
+          # a mixed one. Both fail here in seconds rather than in review.
+          test -s www/index.html || { echo "www/index.html missing — run tools/ship_ios.py in the corpus repo and commit"; exit 1; }
+          grep -q 'rel="manifest"' www/index.html || { echo "PWA manifest link not injected — re-run tools/ship_ios.py"; exit 1; }
+          test -s www/manifest.webmanifest || { echo "www/manifest.webmanifest missing — ship_ios.py copies it"; exit 1; }
+          test -s www/sw.js || { echo "www/sw.js missing — ship_ios.py copies it"; exit 1; }
+          # THE SHIP SET IS COHERENT OR THE BUILD REFUSES — ship_ios.py writes ship-manifest.json
+          # (sha256 of every www file at ship time); verify each so only whole sets from one run build.
+          test -s www/ship-manifest.json || { echo "www/ship-manifest.json missing — re-run tools/ship_ios.py"; exit 1; }
+          python3 - <<'MANIFEST'
+          import hashlib, json, os, sys
+          man = json.load(open("www/ship-manifest.json"))["files"]
+          bad = []
+          for rel, want in man.items():
+              p = os.path.join("www", rel)
+              try:
+                  got = hashlib.sha256(open(p, "rb").read()).hexdigest()
+              except FileNotFoundError:
+                  bad.append(f"{rel}: MISSING (manifest ships it; upload did not)"); continue
+              if got != want:
+                  bad.append(f"{rel}: sha {got[:16]} != manifest {want[:16]} — from a DIFFERENT ship run")
+          if bad:
+              print("SHIP SET INCOHERENT — upload the whole set from one ship run:")
+              [print("  " + b) for b in bad]; sys.exit(1)
+          print(f"ship set coherent: {len(man)} files match ship-manifest.json")
+          MANIFEST
+          CSHA=$(shasum -a 256 www/index.html | cut -c1-16)
+          echo "ALIGN: build #$PROJECT_BUILD_NUMBER · index.html sha $CSHA"
+
+      - name: Install npm dependencies
+        script: npm ci || npm install
+
+      - name: Add & sync the iOS platform
+        script: |
+          npx cap add ios 2>/dev/null || true
+          npx cap sync ios
+
+      - name: Generate app icon & splash
+        script: |
+          npx capacitor-assets generate --ios || true
+
+      - name: Add the privacy manifest to the app target
+        script: |
+          cp native/PrivacyInfo.xcprivacy ios/App/App/
+          # register it as a bundle resource so it ships inside the app (capacitor-assets/pod don't)
+          gem list xcodeproj -i || gem install xcodeproj --no-document
+          ruby - <<'RUBY'
+          require 'xcodeproj'
+          proj = Xcodeproj::Project.open('ios/App/App.xcodeproj')
+          target = proj.targets.find { |t| t.name == 'App' }
+          group  = proj.main_group['App'] || proj.main_group
+          path   = 'App/PrivacyInfo.xcprivacy'
+          unless group.files.any? { |f| f.path == 'PrivacyInfo.xcprivacy' }
+            ref = group.new_reference(path)
+            target.add_resources([ref])
+            proj.save
+            puts "PrivacyInfo.xcprivacy added to the App target's resources"
+          else
+            puts "PrivacyInfo.xcprivacy already referenced"
+          end
+          RUBY
+
+      - name: Configure Info.plist (compliance, location, orientation — no camera, no mic, no tracking)
+        script: |
+          PLIST="ios/App/App/Info.plist"
+          # Export compliance: no encryption beyond HTTPS -> exempt; skips the questionnaire per build.
+          /usr/libexec/PlistBuddy -c "Delete :ITSAppUsesNonExemptEncryption" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST"
+          # Location — requested only in-use, only on an explicit tap (README review note). The string
+          # must be present and specific or App Review rejects an app that touches CoreLocation.
+          LOC="Weatherglass uses your location only when you tap to pin your position or to fetch weather and official warnings for where you are. Your location is never stored, and is sent only to the weather service you request."
+          /usr/libexec/PlistBuddy -c "Delete :NSLocationWhenInUseUsageDescription" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :NSLocationWhenInUseUsageDescription string $LOC" "$PLIST"
+          # ORIENTATION — the app is designed phones-portrait, iPad-landscape (its own responsive
+          # breakpoints + the web screen.orientation.lock attempt). Enforce it at the OS so a rotated
+          # iPhone never renders the portrait layout sideways. UIRequiresFullScreen=true opts out of
+          # iPad Split View, which is what LETS an app restrict iPad orientations.
+          /usr/libexec/PlistBuddy -c "Delete :UISupportedInterfaceOrientations" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations array" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations: string UIInterfaceOrientationPortrait" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Delete :UISupportedInterfaceOrientations~ipad" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations~ipad array" "$PLIST"
+          for o in UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight; do
+            /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations~ipad: string $o" "$PLIST"; done
+          /usr/libexec/PlistBuddy -c "Delete :UIRequiresFullScreen" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :UIRequiresFullScreen bool true" "$PLIST"
+          # iPhone + iPad. UIDeviceFamily=[1,2] is the Info.plist half; TARGETED_DEVICE_FAMILY=1,2 on
+          # the archive (below) is the authoritative half ASC reads for "supported devices".
+          # Submission then requires a 13" iPad screenshot (capture the landscape two-pane).
+          /usr/libexec/PlistBuddy -c "Delete :UIDeviceFamily" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily array" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily: integer 1" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily: integer 2" "$PLIST"
+          echo "Info.plist configured: encryption-exempt, location string, portrait iPhone / landscape iPad, device family 1,2"
+
+      - name: Install CocoaPods
+        script: |
+          cd ios/App && pod install
+
+      - name: Set the version and build number
+        script: |
+          cd ios/App
+          # THE BUILD NUMBER (CFBundleVersion) — unique per upload, from Codemagic.
+          agvtool new-version -all "$PROJECT_BUILD_NUMBER" || true
+          # THE MARKETING VERSION (CFBundleShortVersionString) — one home: codemagic.yaml vars.
+          MV="$MARKETING_VERSION"
+          agvtool new-marketing-version "$MV"
+          # PROVE IT TOOK — a project that hard-codes the string would swallow this and fail at
+          # upload forty minutes later (the 1History build-51 lesson). Read it back and refuse now.
+          GOT=$(agvtool what-marketing-version -terse1 2>/dev/null | tail -1)
+          echo "marketing version now: $GOT (wanted $MV)"
+          if [ "$GOT" != "$MV" ]; then
+            echo "REFUSED: marketing version is '$GOT', expected '$MV' — upload would be rejected 90062/90186."
+            exit 1
+          fi
+
+      - name: Apply signing profiles
+        script: xcode-project use-profiles
+
+      - name: Build the IPA
+        script: |
+          # TARGETED_DEVICE_FAMILY=1,2 — iPhone + iPad; ASC derives "supported devices" from the
+          # archived binary's build setting, so pass it to the archive, not only Info.plist.
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME" \
+            --archive-xcargs "COMPILER_INDEX_STORE_ENABLE=NO TARGETED_DEVICE_FAMILY=1,2"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

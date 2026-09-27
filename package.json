@@ -1,0 +1,22 @@
+{
+  "name": "weatherglass",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Weatherglass — an offline climate atlas that gains a live pulse on request",
+  "scripts": {
+    "add:ios": "cap add ios",
+    "sync": "cap sync",
+    "assets": "capacitor-assets generate --ios",
+    "open:ios": "cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "^6.1.0",
+    "@capacitor/ios": "^6.1.0",
+    "@capacitor/geolocation": "^6.0.0",
+    "@capacitor/screen-orientation": "^6.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.0",
+    "@capacitor/assets": "^3.0.5"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "appId": "live.weatherglass.app",
+  "appName": "Weatherglass",
+  "webDir": "www",
+  "backgroundColor": "#0A0C16",
+  "ios": {
+    "backgroundColor": "#0A0C16",
+    "contentInset": "always",
+    "limitsNavigationsToAppBoundDomains": false
+  },
+  "plugins": {
+    "CapacitorHttp": { "enabled": true },
+    "Geolocation": {}
+  }
+}

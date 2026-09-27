@@ -1,0 +1,84 @@
+# Weatherglass — iOS wrapper (Capacitor + Codemagic, no Mac needed)
+
+The App Store binary for **Weatherglass**. Modeled on the `1history-ios` pipeline that already
+builds green on this Apple Developer account, but much simpler: Weatherglass is **one
+self-contained HTML file** (the whole climate atlas is baked inline), so there is **no On-Demand
+Resources payload, no in-app purchases, and no language packs** — the app is bundled directly into
+`www/` and shipped whole.
+
+## How content flows
+
+```
+corpus repo (C:\1Weather):
+    tools/build_weatherglass.py  ->  build/weatherglass.html   (the shipped single-file app)
+    tools/ship_ios.py            ->  copies it here as www/index.html + PWA shell + icons
+
+this repo:
+    git tag v1.0.0               ->  Codemagic builds the IPA, configures Info.plist,
+                                     signs, and ships to TestFlight
+```
+
+There is no runtime consent-gated fetch to wire: the app already boots offline and reaches out
+only for the live weather/warnings the reader taps for (Constitution Art. I). The wrapper's only
+native concerns are **geolocation** (the "Current location" button), **orientation** (phones
+portrait, iPad landscape), and the **privacy manifest**.
+
+## One-time setup (browser only)
+
+1. **App Store Connect** — the app record with Bundle ID **`live.weatherglass.app`** already exists
+   (created during listing setup). The Bundle ID must match `capacitor.config.json` and
+   `codemagic.yaml` exactly, or signing fails.
+2. **Codemagic** — add this repo as an app. Signing is **automatic** via the account-wide
+   **App Store Connect integration** (`Paisarn`, reused from 1History): `codemagic.yaml` sets
+   `ios_signing.distribution_type: app_store` + `bundle_identifier: live.weatherglass.app`, so
+   Codemagic fetches — creating if missing — the distribution certificate and provisioning profile
+   itself. **Nothing to create or upload by hand.**
+3. **Icon** — `assets/icon.png` (1024×1024) and `assets/splash.png` (2732×2732) are already here,
+   generated from `store/icon/icon.svg`. `capacitor-assets` rasterizes every size in CI.
+
+## Every release
+
+```bash
+# in the corpus repo (C:\1Weather), after the guards are green:
+python3 tools/build_weatherglass.py
+python3 tools/ship_ios.py            # fills weatherglass-ios/www/
+
+# in THIS repo:
+git add -A && git commit -m "release vX.Y.Z (app sha …)"
+git push
+# bump MARKETING_VERSION in codemagic.yaml first (a released version's train CLOSES), then:
+git tag v1.0.0 && git push origin v1.0.0    # the tag triggers the build
+```
+
+Codemagic builds ~15–25 min → the build appears in TestFlight automatically.
+
+## What the CI does
+
+- **Guard step** — refuses to build if `www/index.html` is missing, the PWA manifest link wasn't
+  injected (`ship_ios.py` does that), or the `ship-manifest.json` shas don't match (a half-uploaded
+  set fails in seconds, not in review).
+- **Info.plist** — export-compliance exempt (`ITSAppUsesNonExemptEncryption=false`, HTTPS only);
+  the location usage string; **iPhone portrait-only / iPad landscape-only** orientation with
+  `UIRequiresFullScreen=true`; `UIDeviceFamily=[1,2]`.
+- **Privacy manifest** — `native/PrivacyInfo.xcprivacy` copied into the app target: no tracking,
+  **no collected data**, UserDefaults declared CA92.1.
+- **No camera, no mic, no background location, no IAP, no accounts.**
+
+## App Review notes (paste into the review form — heads off the usual rejection)
+
+> Weatherglass is not a website wrapper. It ships a complete offline climate atlas (thousands of
+> stations with 1991–2020 normals, historic storm tracks, record extremes) fully usable with no
+> network, plus native geolocation. Live weather and official warnings are additive and only
+> fetched when the user asks. This satisfies the minimum-functionality guideline (4.2): substantial
+> native, offline value independent of any web content.
+>
+> Location is requested only in-use, only on an explicit tap, to fetch weather/warnings for the
+> user's point; never stored, never background. Free app — no ads, no subscriptions, no accounts.
+
+## Deliberately NOT here
+
+- **No On-Demand Resources** — the atlas is inline in the single HTML; nothing is staged or fetched
+  on consent.
+- **No StoreKit/IAP** — Weatherglass is free, no products on either store.
+- **No analytics, no accounts, no server of ours.** The only network traffic the app makes is the
+  user-initiated weather/warning request to the whitelisted, verified sources.
