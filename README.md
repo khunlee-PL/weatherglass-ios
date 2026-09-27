@@ -28,11 +28,12 @@ portrait, iPad landscape), and the **privacy manifest**.
 1. **App Store Connect** — the app record with Bundle ID **`live.weatherglass.app`** already exists
    (created during listing setup). The Bundle ID must match `capacitor.config.json` and
    `codemagic.yaml` exactly, or signing fails.
-2. **Codemagic** — add this repo as an app. Signing is **automatic** via the account-wide
-   **App Store Connect integration** (`Paisarn`, reused from 1History): `codemagic.yaml` sets
-   `ios_signing.distribution_type: app_store` + `bundle_identifier: live.weatherglass.app`, so
-   Codemagic fetches — creating if missing — the distribution certificate and provisioning profile
-   itself. **Nothing to create or upload by hand.**
+2. **Codemagic** — add this repo as an app. Signing is **manual**, exactly as 1history-ios:
+   the `Paisarn` ASC API key is App-Manager (can make profiles, not certificates), so automatic
+   signing fails. Instead `codemagic.yaml` references two identities stored under Team settings →
+   Code signing identities: the profile `weatherglass_appstore` (generated at developer.apple.com
+   for `live.weatherglass.app`, then "Fetch profiles" into Codemagic) and the distribution
+   certificate `kaleido-1` (shared with 1History). Both already exist.
 3. **Icon** — `assets/icon.png` (1024×1024) and `assets/splash.png` (2732×2732) are already here,
    generated from `store/icon/icon.svg`. `capacitor-assets` rasterizes every size in CI.
 

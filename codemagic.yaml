@@ -210,4 +210,9 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        submit_to_testflight: true
+        # Upload only. submit_to_testflight would ALSO submit the build for EXTERNAL beta review,
+        # which ASC refuses (422) until the TestFlight "Test Information" page (Beta App
+        # Description, contact) is filled — builds #5/#6 uploaded fine but showed "post-processing
+        # failed" on exactly that. App Store submission attaches the build directly, so it is
+        # not needed; flip to true once Test Information is saved if external testers are wanted.
+        submit_to_testflight: false
