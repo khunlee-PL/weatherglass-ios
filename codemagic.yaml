@@ -27,15 +27,16 @@ workflows:
 
     environment:
       ios_signing:
-        # Codemagic's schema requires EITHER (distribution_type + bundle_identifier) OR
-        # (provisioning_profiles [+ certificates]) — `certificates` alone is rejected as invalid.
-        # So: the automatic block (distribution_type + bundle_identifier) fetches the App Store
-        # profile for the bundle id via the Paisarn API key, and `certificates` supplies the account's
-        # stored DISTRIBUTION CERTIFICATE `kaleido-1` (the one 1History signs with) — which carries
-        # the private key the App-Manager API key cannot create itself (build #2:
-        # "Cannot save Signing Certificates without certificate private key").
-        distribution_type: app_store
-        bundle_identifier: live.weatherglass.app
+        # MANUAL signing, exactly as 1history-ios does it — both identities are STORED in Codemagic
+        # (Team settings → Code signing identities) and referenced here by name:
+        #   · weatherglass_appstore — the App Store provisioning profile for live.weatherglass.app,
+        #     generated at developer.apple.com against the account's distribution certificate and
+        #     fetched into Codemagic via the Paisarn API key.
+        #   · kaleido-1 — that distribution certificate, WITH its private key (the same one 1History
+        #     signs with). The App-Manager API key can make profiles but not certificates, which is
+        #     why automatic signing failed (builds #1–#3); storing both sidesteps that entirely.
+        provisioning_profiles:
+          - weatherglass_appstore
         certificates:
           - kaleido-1
       vars:
@@ -183,16 +184,11 @@ workflows:
             exit 1
           fi
 
-      - name: Set up code signing (fetch/create the App Store profile, pair with kaleido-1)
+      - name: Apply signing profiles
         script: |
-          # The stored `kaleido-1` distribution certificate (with its private key) is already loaded
-          # into the build keychain by the `environment.ios_signing.certificates` block above — that
-          # supplies the private key the API key cannot. Here we only need the PROFILE: --create
-          # makes the Paisarn key create (or fetch) the App Store provisioning profile for the bundle
-          # id, then `use-profiles` writes the profile + matching cert onto the App target.
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --type IOS_APP_STORE \
-            --create
+          # Codemagic has already loaded the stored `weatherglass_appstore` profile and `kaleido-1`
+          # certificate (environment.ios_signing above) into the build keychain. This writes them onto
+          # the App target (CODE_SIGN_STYLE=Manual + PROVISIONING_PROFILE_SPECIFIER) for the archive.
           xcode-project use-profiles
 
       - name: Build the IPA
