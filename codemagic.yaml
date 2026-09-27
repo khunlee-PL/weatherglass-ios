@@ -26,14 +26,13 @@ workflows:
       app_store_connect: Paisarn      # account-wide ASC API key in Codemagic (reused from 1History)
 
     environment:
-      ios_signing:
-        # AUTOMATIC code signing via the App Store Connect API key (the `Paisarn` integration above).
-        # Codemagic fetches — creating if missing — the distribution certificate and an App Store
-        # provisioning profile for this bundle id, so there is NOTHING to create or upload by hand
-        # for the first build. `xcode-project use-profiles` (below) then applies them to the archive.
-        distribution_type: app_store
-        bundle_identifier: live.weatherglass.app
+      # AUTOMATIC code signing is done explicitly in the "Set up code signing" step below, which
+      # runs `app-store-connect fetch-signing-files … --create`: the `--create` flag makes Codemagic
+      # CREATE the App Store provisioning profile (and the distribution certificate if none exists)
+      # for this bundle id via the `Paisarn` API key. The declarative `ios_signing` block does NOT
+      # pass --create, so it failed the first build ("No matching profiles found for … app_store").
       vars:
+        BUNDLE_ID: "live.weatherglass.app"
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
         # THE MARKETING VERSION — CFBundleShortVersionString, the App Store's "version number".
@@ -177,8 +176,17 @@ workflows:
             exit 1
           fi
 
-      - name: Apply signing profiles
-        script: xcode-project use-profiles
+      - name: Set up code signing (fetch + CREATE the App Store profile & cert via the API key)
+        script: |
+          keychain initialize
+          # --create makes Codemagic CREATE the App Store provisioning profile — and a distribution
+          # certificate if none exists — for this bundle id, using the `Paisarn` App Store Connect
+          # API key. This is the piece the first build was missing ("No matching profiles found").
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
 
       - name: Build the IPA
         script: |
