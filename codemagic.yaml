@@ -27,12 +27,15 @@ workflows:
 
     environment:
       ios_signing:
-        # Load the account's stored DISTRIBUTION CERTIFICATE (`kaleido-1`, the one 1History signs
-        # with — it carries the private key Codemagic needs). The Paisarn API key is App-Manager, so
-        # it can CREATE the provisioning profile but NOT a certificate — hence build #2 failed with
-        # "Cannot save Signing Certificates without certificate private key". Providing kaleido-1
-        # here supplies that key; the "Set up code signing" step then creates/fetches the App Store
-        # profile for the bundle id and `xcode-project use-profiles` pairs the two.
+        # Codemagic's schema requires EITHER (distribution_type + bundle_identifier) OR
+        # (provisioning_profiles [+ certificates]) — `certificates` alone is rejected as invalid.
+        # So: the automatic block (distribution_type + bundle_identifier) fetches the App Store
+        # profile for the bundle id via the Paisarn API key, and `certificates` supplies the account's
+        # stored DISTRIBUTION CERTIFICATE `kaleido-1` (the one 1History signs with) — which carries
+        # the private key the App-Manager API key cannot create itself (build #2:
+        # "Cannot save Signing Certificates without certificate private key").
+        distribution_type: app_store
+        bundle_identifier: live.weatherglass.app
         certificates:
           - kaleido-1
       vars:
