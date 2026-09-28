@@ -1143,7 +1143,7 @@ window.WXNEWS_EXIT=function(){
   window.WXNEWS_ACTIVE=false; newsItems=[]; newsSel=-1; if(newsPulseId){ cancelAnimationFrame(newsPulseId); newsPulseId=0; }
   document.getElementById("wx-news").classList.remove("on");
   const t=document.getElementById("wx-news-out"); if(t) t.hidden=true;
-  newsStop(); const tp=document.getElementById("news-tp"); if(tp) tp.hidden=true;
+  newsStop(); newsTour=false; const tp=document.getElementById("news-tp"); if(tp) tp.hidden=true;
   requestAnimationFrame(render);
 };
 // ---------- news tour transport: ⏮ easternmost · ◀ previous · ⏵/⏸ · ▶ next · ⏭ westernmost ----------
@@ -1153,7 +1153,7 @@ function newsPos(){ const el=document.getElementById("ntp-pos"); if(el) el.textC
 function newsStop(){ if(newsTimer){ clearInterval(newsTimer); newsTimer=null; } const b=document.getElementById("ntp-play"); if(b){ b.textContent="⏵"; b.classList.remove("on"); } }
 function newsPlay(){ if(newsTimer||newsItems.length<2) return; const b=document.getElementById("ntp-play"); if(b){ b.textContent="⏸"; b.classList.add("on"); }
   newsTimer=setInterval(()=>{ if(!window.WXNEWS_ACTIVE){ newsStop(); return; } newsGo(newsSel+1); },4000); }
-function showNewsTransport(){ const tp=document.getElementById("news-tp"); if(!tp||!window.WXNEWS_ACTIVE||!newsItems.length) return; tp.hidden=false; newsPos(); }
+function showNewsTransport(){ const tp=document.getElementById("news-tp"); if(!tp||!window.WXNEWS_ACTIVE||!newsItems.length) return; tp.hidden=false; newsTour=true; newsPos(); }
 (function(){ const on=(id,f)=>{ const b=document.getElementById(id); if(b) b.addEventListener("click",e=>{ e.stopPropagation(); f(); }); };
   on("ntp-first",()=>{ newsStop(); newsGo(0); });
   on("ntp-prev", ()=>{ newsStop(); newsGo(newsSel-1); });
@@ -1186,7 +1186,7 @@ function pickNews(mx,my){
   if(best>=0){ showNews(best); return true; } return false;
 }
 // News dots breathe slowly (2.4 s cycle): a soft halo swells and fades around each event while the tour is on.
-let newsPulseId=0;
+let newsPulseId=0, newsTour=false;      // newsTour: the transport row is up — only the current stop breathes
 function newsPulse(){ if(!window.WXNEWS_ACTIVE){ newsPulseId=0; return; } render(); newsPulseId=requestAnimationFrame(newsPulse); }
 function drawNews(){
   if(!window.WXNEWS_ACTIVE) return;
@@ -1194,10 +1194,10 @@ function drawNews(){
   for(let i=0;i<newsItems.length;i++){ const it=newsItems[i];
     let pr,ok=true; if(mode==="ee"){pr=eqEarth(it.lng,it.lat);}else{pr=globe(it.lng,it.lat);ok=pr.front;}
     if(!ok)continue; const {sx,sy}=toScreen(pr);
-    const col=NEWS_COL[it.level]||"#9fb0c9", r=i===newsSel?6:4.5;
-    ctx.save(); ctx.globalAlpha=0.35*(1-k); ctx.beginPath(); ctx.arc(sx,sy,r+4+10*k,0,Math.PI*2); ctx.fillStyle=col; ctx.fill(); ctx.restore();
+    const col=NEWS_COL[it.level]||"#9fb0c9", r=i===newsSel?6:4.5, breathe=!newsTour || i===newsSel;
+    if(breathe){ ctx.save(); ctx.globalAlpha=0.35*(1-k); ctx.beginPath(); ctx.arc(sx,sy,r+4+10*k,0,Math.PI*2); ctx.fillStyle=col; ctx.fill(); ctx.restore(); }
     ctx.beginPath(); ctx.arc(sx,sy,r,0,Math.PI*2);
-    ctx.save(); ctx.globalAlpha=0.55+0.45*k; ctx.fillStyle=col; ctx.fill(); ctx.restore();
+    ctx.save(); ctx.globalAlpha=breathe?0.55+0.45*k:0.9; ctx.fillStyle=col; ctx.fill(); ctx.restore();
     if(i===newsSel){ ctx.lineWidth=2; ctx.strokeStyle="#fff"; ctx.stroke(); }
   }
   if(!newsPulseId) newsPulseId=requestAnimationFrame(newsPulse);
