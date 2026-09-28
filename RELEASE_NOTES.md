@@ -83,3 +83,17 @@ App content: `www/index.html` build `2026-09-28-cf81b361` (corpus v67).
 
 ## 1.0.0 (build 5) — 2026-09-27
 - First build to reach App Store Connect (manual signing: `weatherglass_appstore` + `kaleido-1`).
+
+## v78 — 105-language Claude-translated set (2026-09-28)
+
+- The UI, first-run disclaimer, and About page are now translated into **105 languages** (106 editions incl.
+  English), the Claude-translated set mirroring 1History. English is the source and inline; every other
+  edition is BETA-badged until a native hand vouches.
+- **Regional language picker** (copied from 1History): the first-run overlay and the language button both
+  show languages grouped by region (Europe, Americas, East Asia, …, Oceania) with endonyms, a search box,
+  a BETA tag, and RTL layout (dir=rtl) for Arabic, Hebrew, Persian, Urdu, Pashto, Sorani Kurdish, Uyghur.
+- **Delivery.** iOS: one On-Demand Resource tag per language (105). Android: languages GROUPED into 23
+  stable Play Asset Delivery packs by script/region (lang-groups.json), under Play's 50-pack cap; the
+  native plugin resolves a code → its group pack and verifies each language's sha256 against
+  lang-manifest.json. English stays inline in the base app.
+- Roster (endonym · region · rtl) in corpus/i18n/roster.json; per-language packs in corpus/i18n/lang/.
