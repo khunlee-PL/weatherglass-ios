@@ -47,11 +47,19 @@ python3 tools/ship_ios.py            # fills weatherglass-ios/www/
 # in THIS repo:
 git add -A && git commit -m "release vX.Y.Z (app sha …)"
 git push
-# bump MARKETING_VERSION in codemagic.yaml first (a released version's train CLOSES), then:
-git tag v1.0.0 && git push origin v1.0.0    # the tag triggers the build
+# then start the build on Codemagic: weatherglass-ios → "Start new build" → branch main
+# (a re-pushed tag of the same name does NOT trigger; use the button). Before a NEW App Store
+# version, bump MARKETING_VERSION in codemagic.yaml first — a released version's train CLOSES.
 ```
 
-Codemagic builds ~15–25 min → the build appears in TestFlight automatically.
+Codemagic builds ~4 min → the build lands in App Store Connect (build number = Codemagic's
+`PROJECT_BUILD_NUMBER`), the internal TestFlight group *Friends* gets it automatically, and the
+external group *Family* needs it added by hand (TestFlight → Family → Builds → +). Release notes /
+"What to test" text lives in `RELEASE_NOTES.md`.
+
+Guards to run in the corpus repo before shipping (from a local copy, not a network mount — the
+jsdom ones crawl there): `node tools/check_boot_offline.js`, `node tools/check_live_contract.js`,
+`python3 tools/check_provenance.py`.
 
 ## What the CI does
 
