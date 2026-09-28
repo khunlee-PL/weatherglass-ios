@@ -841,6 +841,12 @@ function fetchHomeConditions(){
     requestAnimationFrame(render);
   }).catch(()=>{});
 }
+// Interaction quality: while a drag/pinch/wheel is in progress, heavy layers draw at reduced detail
+// (coarser field warp, lighter isobar lattice); 160 ms after the last input a full-quality frame follows.
+// Renders are coalesced: many pointermoves per frame produce ONE render.
+let lowQ=false, lowQTimer=null, renderQueued=false;
+function touchInteraction(){ lowQ=true; clearTimeout(lowQTimer); lowQTimer=setTimeout(()=>{ lowQ=false; queueRender(); },160); }
+function queueRender(){ if(renderQueued) return; renderQueued=true; requestAnimationFrame(()=>{ renderQueued=false; render(); }); }
 function render(){
   layout(); ctx.clearRect(0,0,W,H);
   drawStars();
@@ -1028,7 +1034,7 @@ cv.addEventListener("wheel",e=>{
   e.preventDefault();
   const nz=Math.max(1,Math.min(ZMAX[mode]||16, zoom*Math.exp(-e.deltaY*0.0015)));
   if(mode==="ee") zoomAt(e.offsetX,e.offsetY,nz); else { zoom=nz; panX=0; panY=0; }
-  requestAnimationFrame(render);
+  touchInteraction(); queueRender();
 },{passive:false});
 cv.addEventListener("dblclick",()=>{ resetCam(); requestAnimationFrame(render); });
 
@@ -1221,6 +1227,7 @@ cv.addEventListener("pointerdown",e=>{dragging=true;px=e.clientX;py=e.clientY;mo
 cv.addEventListener("pointermove",e=>{
   if(!dragging)return;
   const dx=e.clientX-px, dy=e.clientY-py; px=e.clientX; py=e.clientY; moved+=Math.abs(dx)+Math.abs(dy);
+  touchInteraction();
   if(mode==="globe"){ yaw-=dx*0.35/zoom; pitch=Math.max(-85,Math.min(85,pitch+dy*0.35/zoom)); }
   else {                                          // flat map: horizontal drag scrolls the world ENDLESSLY
     const degPerPx=360/(2*EE_HALF.w*scale*zoom);  //   (rotate the central meridian, wrap-around)
@@ -1228,7 +1235,7 @@ cv.addEventListener("pointermove",e=>{
     const mer=document.getElementById("meridian"); if(mer){ mer.value=Math.round(lon0); document.getElementById("mval").textContent=Math.round(lon0)+"°"; }
     panY+=dy; clampPan();                          //   vertical drag still pans within the map / zoom
   }
-  requestAnimationFrame(render);
+  queueRender();
 });
 function endDrag(e){
   dragging=false; cv.classList.remove("drag");
@@ -1840,10 +1847,10 @@ function probeRaster(){
 // Free, whitelisted data (Open-Meteo pressure_msl — same verified source as animated wind, no key),
 // contoured on-device. Reuses the wind grid, so switching to it costs no extra fetch. Fail-closed:
 // no grid (offline / unreachable / not yet fetched) → nothing draws and the baked map stands.
-let isoSegs=null, isoHL=null, isoField=null;   // cached contour segments + pressure centres + upsampled field (per grid load)
+let isoSegs=null, isoSegsLow=null, isoHL=null, isoField=null;   // cached contour segments (fine + coarse) + pressure centres + upsampled field (per grid load)
 const ISO_STEP=4, ISO_BOLD=20, ISO_SUB=4;     // contour every 4 hPa; bold every 20; bilinear ×4 upsample
 function buildIsobars(){
-  isoSegs=null; isoHL=null; isoField=null;
+  isoSegs=null; isoSegsLow=null; isoHL=null; isoField=null;
   if(!gridMap) return;
   const lats=[]; for(let la=GLAT0; la<=GLAT1; la+=GSTEP) lats.push(la);
   const lons=[]; for(let lo=-180; lo<180; lo+=GSTEP) lons.push(lo);
@@ -1875,20 +1882,21 @@ function buildIsobars(){
       const jj=((j+dj)%C+C)%C, nv=V[i+di][jj]; if(nv==null){ok=false;break;} if(nv>=v)hi=false; if(nv<=v)lo=false; }
     if(ok&&(hi||lo)) HL.push({lat:lats[i],lon:lons[j],hPa:Math.round(v),type:hi?"H":"L"});
   }
-  // bilinear upsample to a finer lattice for smooth isolines
-  const latF=[]; for(let i=0;i<R-1;i++)for(let s=0;s<ISO_SUB;s++)latF.push(lats[i]+s*GSTEP/ISO_SUB); latF.push(lats[R-1]);
-  const lonF=[]; for(let j=0;j<C;j++)for(let s=0;s<ISO_SUB;s++)lonF.push(lonsW[j]+s*GSTEP/ISO_SUB); lonF.push(180);
+  // bilinear upsample to a finer lattice for smooth isolines, then contour it. Done twice: ×4 for
+  // the resting frame and ×2 for frames during a drag (a quarter of the segments to project).
+  const contour=(SUB)=>{
+  const latF=[]; for(let i=0;i<R-1;i++)for(let s=0;s<SUB;s++)latF.push(lats[i]+s*GSTEP/SUB); latF.push(lats[R-1]);
+  const lonF=[]; for(let j=0;j<C;j++)for(let s=0;s<SUB;s++)lonF.push(lonsW[j]+s*GSTEP/SUB); lonF.push(180);
   const RF=latF.length, CF=lonF.length, VF=[];
-  for(let a=0;a<RF;a++){ const i0=Math.min(R-2,Math.floor(a/ISO_SUB)), fi=(latF[a]-lats[i0])/GSTEP, row=[];
-    for(let b=0;b<CF;b++){ const j0=Math.min(C-1,Math.floor(b/ISO_SUB)), fj=(lonF[b]-lonsW[j0])/GSTEP;
+  for(let a=0;a<RF;a++){ const i0=Math.min(R-2,Math.floor(a/SUB)), fi=(latF[a]-lats[i0])/GSTEP, row=[];
+    for(let b=0;b<CF;b++){ const j0=Math.min(C-1,Math.floor(b/SUB)), fj=(lonF[b]-lonsW[j0])/GSTEP;
       const v00=V[i0][j0],v10=V[i0][j0+1],v01=V[i0+1][j0],v11=V[i0+1][j0+1];
       if(v00==null||v10==null||v01==null||v11==null){ row.push(null); continue; }
       row.push((v00*(1-fj)+v10*fj)*(1-fi)+(v01*(1-fj)+v11*fj)*fi);
     } VF.push(row); }
-  isoField={latF:latF,lonF:lonF,VF:VF};    // the smooth field, reused for the optional colour gradation
   // levels spanning the field
   let mn=Infinity,mx=-Infinity; for(const r of VF)for(const v of r) if(v!=null){ if(v<mn)mn=v; if(v>mx)mx=v; }
-  if(!isFinite(mn)) return;
+  if(!isFinite(mn)) return null;
   const segs=[];  // {lvl, a:[lon,lat], b:[lon,lat]}
   const interp=(x0,y0,v0,x1,y1,v1,L)=>{ const t=(L-v0)/(v1-v0); return [x0+(x1-x0)*t, y0+(y1-y0)*t]; };
   for(let L=Math.ceil(mn/ISO_STEP)*ISO_STEP; L<=mx; L+=ISO_STEP){
@@ -1913,7 +1921,12 @@ function buildIsobars(){
       }
     }
   }
-  isoSegs=segs; isoHL=HL;
+  return {segs:segs, field:{latF:latF,lonF:lonF,VF:VF}};
+  };
+  const fine=contour(ISO_SUB); if(!fine) return;
+  const coarse=contour(Math.max(1,ISO_SUB/2));
+  isoField=fine.field;                       // the smooth field, reused for the optional colour gradation
+  isoSegs=fine.segs; isoSegsLow=coarse?coarse.segs:fine.segs; isoHL=HL;
 }
 // ---------- colour-graded field layers (keyless, from the Open-Meteo grid) ----------
 const P_STOPS=[[975,40,60,185],[988,30,120,215],[997,25,180,195],[1003,40,200,120],
@@ -2024,7 +2037,7 @@ function drawColorField(){
   if(rasterLayer) return;                                          // HD OWM tiles active → skip the grid field
   if(liveLayer==="isobar" && !isoFill) return;                    // pressure fill toggle
   if(!bmpCache[liveLayer]){ const b=buildFieldBitmap(liveLayer); if(!b) return; bmpCache[liveLayer]=b; }
-  const bmp=bmpCache[liveLayer], IW=bmp.width, IH=bmp.height, S=5;
+  const bmp=bmpCache[liveLayer], IW=bmp.width, IH=bmp.height, S=lowQ?10:5;     // 4× fewer clipped draws while dragging
   const U=lo=>((lo+180)/360)*IW, Vf=la=>((90-la)/180)*IH;
   ctx.save(); ctx.globalAlpha=cfg.warpAlpha;
   for(let la=GLAT0; la<GLAT1; la+=S){ for(let lo=-180; lo<180; lo+=S){
@@ -2035,6 +2048,7 @@ function drawColorField(){
     else { pA=globe(A[0],A[1]);pB=globe(B[0],B[1]);pC=globe(C[0],C[1]);pD=globe(D[0],D[1]);
       if(!(pA.front&&pB.front&&pC.front&&pD.front)) continue; }
     const sA=toScreen(pA),sB=toScreen(pB),sC=toScreen(pC),sD=toScreen(pD);
+    if((sA.sx<0&&sB.sx<0&&sC.sx<0&&sD.sx<0)||(sA.sx>W&&sB.sx>W&&sC.sx>W&&sD.sx>W)||(sA.sy<0&&sB.sy<0&&sC.sy<0&&sD.sy<0)||(sA.sy>H&&sB.sy>H&&sC.sy>H&&sD.sy>H)) continue;   // off-screen
     const uA=U(A[0]),vA=Vf(A[1]),uB=U(B[0]),vB=Vf(B[1]),uC=U(C[0]),vC=Vf(C[1]),uD=U(D[0]),vD=Vf(D[1]);
     drawTri(bmp, sA.sx,sA.sy, sB.sx,sB.sy, sC.sx,sC.sy, uA,vA, uB,vB, uC,vC);
     drawTri(bmp, sA.sx,sA.sy, sC.sx,sC.sy, sD.sx,sD.sy, uA,vA, uC,vC, uD,vD);
@@ -2043,13 +2057,14 @@ function drawColorField(){
 }
 function drawIsobars(){
   if(liveLayer!=="isobar"||!isoSegs) return;
+  const SEGS=(lowQ&&isoSegsLow)?isoSegsLow:isoSegs;
   const seam=(pa,pb)=> mode==="ee" && Math.abs(pa.lam-pb.lam)>180;
   const proj=(lo,la)=>{ let pr; if(mode==="ee"){pr=eqEarth(lo,la);} else {pr=globe(lo,la); if(!pr.front)return null;} return pr; };
   // group by level so each stroke-width tier is one path
   ctx.save(); ctx.lineJoin="round"; ctx.lineCap="round";
   for(const bold of [false,true]){
     ctx.beginPath();
-    for(const s of isoSegs){
+    for(const s of SEGS){
       const isB=(Math.round(s.lvl)%ISO_BOLD===0); if(isB!==bold) continue;
       const pa=proj(s.a[0],s.a[1]); if(!pa) continue;
       const pb=proj(s.b[0],s.b[1]); if(!pb) continue;
