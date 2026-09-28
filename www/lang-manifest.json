@@ -4,13 +4,13 @@
  "note": "Per-language On-Demand Resource digests. Native loadLang verifies lang-<code>.json against these before trusting it.",
  "langs": {
   "th": {
-   "sha256": "57ba2a30188fac23e007e49509504bfd5f46e7200e505789b9ed590cae5d3809",
-   "bytes": 72625,
+   "sha256": "1aa9f8e13ffe70f5fd4bb3a2ff247b8595ca91a4ad2245cf85540e1705909e3b",
+   "bytes": 72876,
    "tag": "lang-th"
   },
   "fil": {
-   "sha256": "5251209c437322c47157d8cb4163ad904737094f6f00196d67d7d9419accc4f1",
-   "bytes": 11755,
+   "sha256": "04ea725b980e45df302517689aa196c58aba33df5446ec87a88be72434faa44f",
+   "bytes": 11907,
    "tag": "lang-fil"
   }
  }
