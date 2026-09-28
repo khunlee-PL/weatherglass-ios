@@ -3,6 +3,12 @@
 Paste the "What to test" block into TestFlight (Test Information → What to Test) and, at App Store
 submission, into "What's New in This Version".
 
+## 1.0.0 (build 10) — 2026-09-28 — the App Store submission build
+
+iPhone ONLY (`TARGETED_DEVICE_FAMILY=1`, `UIDeviceFamily=[1]`): 1.0 ships without iPad so no iPad
+screenshots are needed; widen later. Content = v74 (build 9 + tour: only the current news stop
+breathes). Everything else as build 9.
+
 ## 1.0.0 (build 9) — 2026-09-28
 
 App content: lean build (English inline; `LANG_PACKS_ODR = true`) + On-Demand Resources

@@ -149,26 +149,21 @@ workflows:
           LOC="Weatherglass uses your location only when you tap to pin your position or to fetch weather and official warnings for where you are. Your location is never stored, and is sent only to the weather service you request."
           /usr/libexec/PlistBuddy -c "Delete :NSLocationWhenInUseUsageDescription" "$PLIST" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Add :NSLocationWhenInUseUsageDescription string $LOC" "$PLIST"
-          # ORIENTATION — the app is designed phones-portrait, iPad-landscape (its own responsive
-          # breakpoints + the web screen.orientation.lock attempt). Enforce it at the OS so a rotated
-          # iPhone never renders the portrait layout sideways. UIRequiresFullScreen=true opts out of
-          # iPad Split View, which is what LETS an app restrict iPad orientations.
+          # ORIENTATION — phones are portrait-only (the app's own responsive layout + orientation
+          # lock attempt); enforce it at the OS so a rotated iPhone never renders sideways.
           /usr/libexec/PlistBuddy -c "Delete :UISupportedInterfaceOrientations" "$PLIST" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations array" "$PLIST"
           /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations: string UIInterfaceOrientationPortrait" "$PLIST"
           /usr/libexec/PlistBuddy -c "Delete :UISupportedInterfaceOrientations~ipad" "$PLIST" 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations~ipad array" "$PLIST"
-          for o in UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight; do
-            /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations~ipad: string $o" "$PLIST"; done
           /usr/libexec/PlistBuddy -c "Delete :UIRequiresFullScreen" "$PLIST" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Add :UIRequiresFullScreen bool true" "$PLIST"
-          # iPhone + iPad. UIDeviceFamily=[1,2] is the Info.plist half; TARGETED_DEVICE_FAMILY=1,2 on
-          # the archive (below) is the authoritative half ASC reads for "supported devices".
-          # Submission then requires a 13" iPad screenshot (capture the landscape two-pane).
+          # iPHONE ONLY for 1.0 (the author, 28 Sep 2026): UIDeviceFamily=[1] here and
+          # TARGETED_DEVICE_FAMILY=1 on the archive (below) — ASC reads the archive setting for
+          # "supported devices", so no iPad screenshots are required at submission. Widen to 1,2
+          # (and restore the ~ipad landscape orientations) when the iPad layout gets its screenshots.
           /usr/libexec/PlistBuddy -c "Delete :UIDeviceFamily" "$PLIST" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily array" "$PLIST"
           /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily: integer 1" "$PLIST"
-          /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily: integer 2" "$PLIST"
           # THE LANGUAGES THE STORE SHOWS — derived from www/lang-manifest.json, never typed (the base
           # binary has no .lproj folders, so without this key the store would say "English" forever).
           python3 - <<'LANGS'
@@ -184,7 +179,7 @@ workflows:
           if len(got) != len(langs): raise SystemExit(f"CFBundleLocalizations did not take: wrote {len(langs)}, plist holds {len(got)}")
           print("CFBundleLocalizations: " + ", ".join(got))
           LANGS
-          echo "Info.plist configured: encryption-exempt, location string, portrait iPhone / landscape iPad, device family 1,2, localizations"
+          echo "Info.plist configured: encryption-exempt, location string, portrait, iPhone only (device family 1), localizations"
 
       - name: Install CocoaPods
         script: |
@@ -216,12 +211,12 @@ workflows:
 
       - name: Build the IPA
         script: |
-          # TARGETED_DEVICE_FAMILY=1,2 — iPhone + iPad; ASC derives "supported devices" from the
+          # TARGETED_DEVICE_FAMILY=1 — iPhone only for 1.0; ASC derives "supported devices" from the
           # archived binary's build setting, so pass it to the archive, not only Info.plist.
           xcode-project build-ipa \
             --workspace "$XCODE_WORKSPACE" \
             --scheme "$XCODE_SCHEME" \
-            --archive-xcargs "COMPILER_INDEX_STORE_ENABLE=NO TARGETED_DEVICE_FAMILY=1,2"
+            --archive-xcargs "COMPILER_INDEX_STORE_ENABLE=NO TARGETED_DEVICE_FAMILY=1"
 
     artifacts:
       - build/ios/ipa/*.ipa
