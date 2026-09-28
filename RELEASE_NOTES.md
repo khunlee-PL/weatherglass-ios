@@ -3,6 +3,24 @@
 Paste the "What to test" block into TestFlight (Test Information → What to Test) and, at App Store
 submission, into "What's New in This Version".
 
+## 1.0.0 (build 8) — 2026-09-28
+
+App content: `www/index.html` build `2026-09-28-08fd6c6f` (corpus v68). New native plugin:
+`@capacitor/preferences` (added to package.json; `cap sync` picks it up).
+
+### What to test
+- First launch after this update: a language picker (English / ไทย / Filipino) appears first, then the
+  disclaimer in that language. The choice sticks across launches.
+- Status bar: the logo, Home/Location/Search and Globe|Map/+/− now sit below the clock and battery
+  icons; the bottom card clears the home indicator.
+- Home pins, settings, language, OWM key and the disclaimer acceptance are now also stored natively
+  (UserDefaults). Pin a home, force-quit, relaunch — it must still be there. It should also survive
+  the next update.
+- Globe view: an **N↑** button under − levels the globe (axis vertical) with a short animation; hidden
+  on the flat map.
+- Hourly tab now shows the same current-conditions line as Daily (larger type, source and time on a
+  second line).
+
 ## 1.0.0 (build 7) — 2026-09-28
 
 App content: `www/index.html` build `2026-09-28-cf81b361` (corpus v67).
