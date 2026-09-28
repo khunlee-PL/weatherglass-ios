@@ -2,26 +2,31 @@
 
 The App Store binary for **Weatherglass**. Modeled on the `1history-ios` pipeline that already
 builds green on this Apple Developer account, but much simpler: Weatherglass is **one
-self-contained HTML file** (the whole climate atlas is baked inline), so there is **no On-Demand
-Resources payload, no in-app purchases, and no language packs** — the app is bundled directly into
-`www/` and shipped whole.
+self-contained HTML file** (the whole climate atlas is baked inline) and **no in-app purchases**.
+The base app is **English only**; every other language (Thai, Filipino …) is an **On-Demand
+Resource** — a small JSON pack (`odr/lang/lang-<code>.json`, 12–75 KB) the App Store hosts and the
+device downloads when the reader picks that language, sha-verified against `www/lang-manifest.json`
+by the native `WeatherglassLang` plugin. The web build (`build/weatherglass.html`) keeps everything
+inline; `tools/ship_ios.py` produces the lean build for the store.
 
 ## How content flows
 
 ```
 corpus repo (C:\1Weather):
     tools/build_weatherglass.py  ->  build/weatherglass.html   (the shipped single-file app)
-    tools/ship_ios.py            ->  copies it here as www/index.html + PWA shell + icons
+    tools/ship_ios.py            ->  LEAN rebuild (English inline) as www/index.html + PWA shell + icons,
+                                     language packs -> odr/lang/, digests -> www/lang-manifest.json
 
 this repo:
     git tag v1.0.0               ->  Codemagic builds the IPA, configures Info.plist,
                                      signs, and ships to TestFlight
 ```
 
-There is no runtime consent-gated fetch to wire: the app already boots offline and reaches out
-only for the live weather/warnings the reader taps for (Constitution Art. I). The wrapper's only
-native concerns are **geolocation** (the "Current location" button), **orientation** (phones
-portrait, iPad landscape), and the **privacy manifest**.
+The app boots offline and reaches out only for the live weather/warnings the reader taps for
+(Constitution Art. I). Native concerns: **geolocation**, **orientation** (phones portrait, iPad
+landscape), the **privacy manifest**, **Preferences** (durable homes/settings), and the **language
+ODR plugin** (`native/WeatherglassLang.swift`, registered by `native/MyViewController.swift`,
+wired by `scripts/add_odr.rb`).
 
 ## One-time setup (browser only)
 

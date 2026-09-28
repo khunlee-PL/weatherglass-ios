@@ -1,11 +1,11 @@
 # Weatherglass — iOS build & TestFlight pipeline for Codemagic.
 #
 # Modeled on the 1history-ios pipeline that already builds green on this account, but far simpler:
-# Weatherglass is one self-contained HTML file (the atlas is baked inline), so there is
-#   · NO On-Demand Resources (nothing staged or fetched on consent),
-#   · NO StoreKit/IAP (free app, no products),
-#   · NO language packs / CFBundleLocalizations (English base; the app localizes nothing natively).
-# The wrapper's only native concerns are geolocation, orientation, and the privacy manifest.
+# Weatherglass is one self-contained HTML file (the atlas is baked inline). The base app is
+# ENGLISH ONLY; every other language (Thai, Filipino …) is an On-Demand Resource — a small JSON
+# pack the App Store hosts and the device downloads when the reader picks it (scripts/add_odr.rb,
+# native/WeatherglassLang.swift). No StoreKit/IAP (free app). CFBundleLocalizations is derived from
+# www/lang-manifest.json so the store's "Languages" row matches the packs that actually ride.
 #
 # One-time setup (browser only — see README.md):
 #   1. Codemagic > Teams > Integrations > App Store Connect: the existing "Paisarn" key works for
@@ -71,6 +71,21 @@ workflows:
           # empty app; a half-uploaded set (files reach GitHub's web UI one at a time) would ship
           # a mixed one. Both fail here in seconds rather than in review.
           test -s www/index.html || { echo "www/index.html missing — run tools/ship_ios.py in the corpus repo and commit"; exit 1; }
+          grep -q 'LANG_PACKS_ODR = true' www/index.html || { echo "www/index.html is not the LEAN build — languages would ship inline; re-run tools/ship_ios.py"; exit 1; }
+          test -s www/lang-manifest.json || { echo "www/lang-manifest.json missing — ship_ios.py writes it"; exit 1; }
+          # every pack the manifest names must be here and match its digest (the native loader trusts nothing else)
+          python3 - <<'LANGS'
+          import hashlib, json, os, sys
+          man = json.load(open("www/lang-manifest.json"))["langs"]
+          bad = []
+          for code, meta in man.items():
+              p = f"odr/lang/lang-{code}.json"
+              if not os.path.isfile(p): bad.append(f"{p}: MISSING"); continue
+              got = hashlib.sha256(open(p, "rb").read()).hexdigest()
+              if got != meta["sha256"]: bad.append(f"{p}: sha {got[:16]} != manifest {meta['sha256'][:16]}")
+          if bad: print("LANGUAGE PACKS INCOHERENT:"); [print("  " + b) for b in bad]; sys.exit(1)
+          print(f"language packs coherent: {len(man)} ({', '.join(sorted(man))})")
+          LANGS
           grep -q 'rel="manifest"' www/index.html || { echo "PWA manifest link not injected — re-run tools/ship_ios.py"; exit 1; }
           test -s www/manifest.webmanifest || { echo "www/manifest.webmanifest missing — ship_ios.py copies it"; exit 1; }
           test -s www/sw.js || { echo "www/sw.js missing — ship_ios.py copies it"; exit 1; }
@@ -109,29 +124,19 @@ workflows:
         script: |
           npx capacitor-assets generate --ios || true
 
-      - name: Add the privacy manifest to the app target
+      - name: Add the native language plugin, the language packs (ODR) and the privacy manifest
         script: |
+          cp native/WeatherglassLang.swift ios/App/App/
+          cp native/MyViewController.swift ios/App/App/
           cp native/PrivacyInfo.xcprivacy ios/App/App/
-          # register it as a bundle resource so it ships inside the app (capacitor-assets/pod don't)
+          # Point the storyboard at the registering view controller — Capacitor does not auto-discover
+          # in-app plugin classes; without this the language downloads would silently do nothing.
+          SB="ios/App/App/Base.lproj/Main.storyboard"
+          sed -i '' 's/customClass="CAPBridgeViewController" customModule="Capacitor"/customClass="MyViewController" customModule="App"/' "$SB"
+          sed -i '' 's/customClass="CAPBridgeViewController"/customClass="MyViewController" customModule="App" customModuleProvider="target"/' "$SB"
+          grep -q 'customClass="MyViewController"' "$SB" || { echo "storyboard rewrite FAILED — plugin would ship unregistered"; exit 1; }
           gem list xcodeproj -i || gem install xcodeproj --no-document
-          ruby - <<'RUBY'
-          require 'xcodeproj'
-          proj = Xcodeproj::Project.open('ios/App/App.xcodeproj')
-          target = proj.targets.find { |t| t.name == 'App' }
-          group  = proj.main_group['App'] || proj.main_group
-          # The path is RELATIVE TO THE GROUP. The 'App' group already resolves to ios/App/App/, so
-          # the reference must be the bare filename — 'App/PrivacyInfo.xcprivacy' made Xcode look for
-          # ios/App/App/App/PrivacyInfo.xcprivacy and fail the archive (build #4: "no such file").
-          path   = 'PrivacyInfo.xcprivacy'
-          unless group.files.any? { |f| f.path == 'PrivacyInfo.xcprivacy' }
-            ref = group.new_reference(path)
-            target.add_resources([ref])
-            proj.save
-            puts "PrivacyInfo.xcprivacy added to the App target's resources"
-          else
-            puts "PrivacyInfo.xcprivacy already referenced"
-          end
-          RUBY
+          ruby scripts/add_odr.rb
 
       - name: Configure Info.plist (compliance, location, orientation — no camera, no mic, no tracking)
         script: |
@@ -164,7 +169,22 @@ workflows:
           /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily array" "$PLIST"
           /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily: integer 1" "$PLIST"
           /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily: integer 2" "$PLIST"
-          echo "Info.plist configured: encryption-exempt, location string, portrait iPhone / landscape iPad, device family 1,2"
+          # THE LANGUAGES THE STORE SHOWS — derived from www/lang-manifest.json, never typed (the base
+          # binary has no .lproj folders, so without this key the store would say "English" forever).
+          python3 - <<'LANGS'
+          import json, subprocess
+          PLIST = "ios/App/App/Info.plist"
+          codes = sorted(json.load(open("www/lang-manifest.json"))["langs"])
+          langs = ["en"] + codes
+          def pb(cmd): subprocess.run(["/usr/libexec/PlistBuddy", "-c", cmd, PLIST], capture_output=True, text=True)
+          pb("Delete :CFBundleLocalizations"); pb("Add :CFBundleLocalizations array")
+          for code in langs: pb(f"Add :CFBundleLocalizations: string {code}")
+          out = subprocess.run(["/usr/libexec/PlistBuddy", "-c", "Print :CFBundleLocalizations", PLIST], capture_output=True, text=True).stdout
+          got = [l.strip() for l in out.splitlines() if l.strip() and l.strip() not in ("Array {", "}")]
+          if len(got) != len(langs): raise SystemExit(f"CFBundleLocalizations did not take: wrote {len(langs)}, plist holds {len(got)}")
+          print("CFBundleLocalizations: " + ", ".join(got))
+          LANGS
+          echo "Info.plist configured: encryption-exempt, location string, portrait iPhone / landscape iPad, device family 1,2, localizations"
 
       - name: Install CocoaPods
         script: |

@@ -3,6 +3,24 @@
 Paste the "What to test" block into TestFlight (Test Information → What to Test) and, at App Store
 submission, into "What's New in This Version".
 
+## 1.0.0 (build 9) — 2026-09-28
+
+App content: lean build (English inline; `LANG_PACKS_ODR = true`) + On-Demand Resources
+`lang-th` (73 KB) and `lang-fil` (12 KB). New native plugin `WeatherglassLang` (in-app, registered
+by `MyViewController`); `scripts/add_odr.rb` wires the packs; `CFBundleLocalizations` = en, fil, th.
+
+### What to test
+- First launch: pick ไทย → a "Downloading ไทย…" toast, then the disclaimer and the whole UI in Thai
+  (the pack comes from the App Store, ~73 KB). Force-quit and relaunch: still Thai, instantly.
+- Airplane mode, then pick Filipino for the first time → "Couldn't download Filipino…" and the UI
+  stays as it was. Back online, pick it again → works.
+- Thai UI: station cards titled in Thai (เชียงใหม่), home pins and search results in Thai, and the
+  search box accepts Thai script ("เชียง").
+- App Store product page should list Languages: English, Filipino, Thai.
+- National warnings: outside Thailand the button says no feed is whitelisted for that country
+  (PAGASA for the Philippines is listed but fail-closed until the author flips `verified`).
+- News dots breathe; the GDACS toast sits above the layer row and hides on a tap elsewhere.
+
 ## 1.0.0 (build 8) — 2026-09-28
 
 App content: `www/index.html` build `2026-09-28-08fd6c6f` (corpus v68). New native plugin:
